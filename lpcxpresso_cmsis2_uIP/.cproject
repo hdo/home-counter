@@ -508,7 +508,7 @@
 						<scannerInfoProvider id="com.crt.advproject.specsFile">
 							<runAction arguments="-x assembler-with-cpp -E -P -v -dD ${plugin_state_location}/${specs_file}" command="arm-none-eabi-gcc" useDefault="true"/>
 							<parser enabled="true"/>
-						</scannerInfoProvider>
+					</scannerInfoProvider>
 					</profile>
 					<profile id="org.eclipse.cdt.make.core.GCCStandardMakePerProjectProfile">
 						<buildOutputProvider>
