@@ -1,0 +1,6 @@
+%!: /header.html
+<h1>Current sensor values</h1><br><table id="sensors">
+<tr><th>ID</th><th>Value</th><th>Value 2</th></tr>
+%! sensor-stats
+</div>
+%!: /footer.html
