@@ -50,6 +50,11 @@
 #include "uip.h"
 #include "uip_arp.h"
 #include "tapdev.h"
+#include "type.h"
+#include "uart.h"
+#include "sensors.h"
+#include "ehz.h"
+#include "leds.h"
 
 #include <cr_section_macros.h>
 #include <NXP/crp.h>
@@ -79,6 +84,12 @@ void uip_log(char *m)
 
 char ipstring [20];
 
+extern volatile uint32_t UART2Count;
+extern volatile uint8_t UART2Buffer[BUFSIZE];
+extern volatile uint8_t ehz_value_parsed;
+extern uint32_t ehz_value;
+
+
 int main(void)
 {
 	unsigned int i;
@@ -97,6 +108,21 @@ int main(void)
 		// two timers for tcp/ip
 	timer_set(&periodic_timer, CLOCK_SECOND / 2); /* 0.5s */
 	timer_set(&arp_timer, CLOCK_SECOND * 10);	/* 10s */
+
+	// led init
+	led2_init();
+	led2_on();
+
+	// sensor init
+	init_sensors();
+	add_ehz(0);
+
+
+	UARTInit(2, 9600);	/* baud rate setting */
+	const char* welcomeMsg = "UART3 Online:\r\n";
+	UARTSend(2, (uint8_t *)welcomeMsg , strlen(welcomeMsg) );
+	led2_off();
+
 	
 	// ethernet init
 	tapdev_init();
@@ -117,7 +143,7 @@ int main(void)
 
 	while(1)
 	{
- 	/* receive packet and put in uip_buf */
+ 	    /* receive packet and put in uip_buf */
 		uip_len = tapdev_read(uip_buf);
     	if(uip_len > 0)		/* received packet */
     	{ 
@@ -187,5 +213,33 @@ int main(void)
 				uip_arp_timer();
 			}
     	}
+
+		if ( UART2Count != 0 ) {
+			led2_on();
+			LPC_UART2->IER = IER_THRE | IER_RLS;				/* Disable RBR */
+
+			int i = 0;
+			for(; i < UART2Count; i++) {
+				ehz_process_serial_data(UART2Buffer[i]);
+			}
+			UART2Count = 0;
+
+			if (ehz_value_parsed > 0) {
+				SENSOR_DATA* sd = get_sensor(SENSOR_TYPE_EHZ, 0);
+				if (sd) {
+					sd->value = ehz_value;
+				}
+
+				uint8_t puffer[20];
+				uint8_t l = sprintf( puffer, "\n\rZaehlerstand: %u\n\r", ehz_value );
+				UARTSend(2, (uint8_t *)puffer, l );
+				ehz_value_parsed = 0;
+			}
+
+			LPC_UART2->IER = IER_THRE | IER_RLS | IER_RBR;		/* Re-enable RBR */
+		}
+		else {
+			led2_off();
+		}
 	}
 }

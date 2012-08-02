@@ -50,6 +50,7 @@
 #include "httpd.h"
 #include "httpd-cgi.h"
 #include "httpd-fs.h"
+#include "sensors.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -210,16 +211,25 @@ generate_sensor_stats(void *arg)
   if (s->count % 2 == 1) {
 	  css = " class=\"alt\"";
   }
-  return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
-		  "<tr%s><td>ID_%d</td><td>%d</td><td>%d</td></tr>\r\n",
-		  css, s->count,4711+s->count,4812+s->count);
+
+  SENSOR_DATA* sd = get_sensor_by_id(s->count);
+  if (sd) {
+	  return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
+			  "<tr%s><td>%d</td><td>%d</td><td>%s</td><td>%d</td><td>%d</td><td>%d</td></tr>\r\n",
+			  css, sd->id,sd->enabled, get_sensor_type(sd->type), sd->address, sd->value,sd->value2);
+  }
+  else {
+	  return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
+			  "<tr%s><td>%d</td><td>%d</td><td>%d</td></tr>\r\n",
+			  css, -1, -1, -1, -1, -1, -1);
+  }
 }
 
 static
 PT_THREAD(sensor_stats(struct httpd_state *s, char *ptr))
 {
   PSOCK_BEGIN(&s->sout);
-  for (s->count = 0; s->count < 12; s->count++) {
+  for (s->count = 0; s->count < MAX_SENSORS; s->count++) {
 	  PSOCK_GENERATOR_SEND(&s->sout, generate_sensor_stats, s);
   }
   PSOCK_END(&s->sout);
