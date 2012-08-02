@@ -368,7 +368,9 @@ uint32_t UARTInit( uint32_t PortNum, uint32_t baudrate )
 		break;
 	}
 
+	/* 8n1 */
     LPC_UART0->LCR = 0x83;		/* 8 bits, no Parity, 1 Stop bit */
+
 	Fdiv = ( pclk / 16 ) / baudrate ;	/*baud rate */
     LPC_UART0->DLM = Fdiv / 256;							
     LPC_UART0->DLL = Fdiv % 256;
@@ -406,7 +408,14 @@ uint32_t UARTInit( uint32_t PortNum, uint32_t baudrate )
 		break;
 	}
 
+	/* 8n1 */
     LPC_UART1->LCR = 0x83;		/* 8 bits, no Parity, 1 Stop bit */
+
+    /* 7e1 */
+    // LPC_UART1->LCR = 0x92;		/* 7 bits, even Parity, 1 Stop bit */
+
+
+
 	Fdiv = ( pclk / 16 ) / baudrate ;	/*baud rate */
     LPC_UART1->DLM = Fdiv / 256;							
     LPC_UART1->DLL = Fdiv % 256;
@@ -451,7 +460,13 @@ uint32_t UARTInit( uint32_t PortNum, uint32_t baudrate )
  		  pclk = SystemCoreClock/8;
  		  break;
  	  }
+
+ 	  /* 8n1 */
  	  LPC_UART2->LCR = 0x83;		/* 8 bits, no Parity, 1 Stop bit */
+
+ 	  /* 7e1 */
+ 	  // LPC_UART1->LCR = 0x92;		/* 7 bits, even Parity, 1 Stop bit */
+
  	  Fdiv = ( pclk / 16 ) / baudrate ;	/*baud rate */
  	  LPC_UART2->DLM = Fdiv / 256;
  	  LPC_UART2->DLL = Fdiv % 256;
@@ -566,6 +581,13 @@ void UARTSend( uint32_t portNum, uint8_t *BufferPtr, uint32_t Length )
 	}
   }
   return;
+}
+
+void UARTSend2(uint8_t data) {
+	/* THRE status, contain valid data */
+	while ( !(UART2TxEmpty & 0x01) );
+	LPC_UART2->THR = data;
+	UART2TxEmpty = 0;	/* not empty in the THR until it shifts out */
 }
 
 /******************************************************************************
