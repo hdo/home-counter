@@ -56,9 +56,7 @@ void SysTick_Handler(void) {
 }
 
 void process_serial_data(uint8_t data) {
-	UARTSend2(data);
 	if (search_match >= SEARCH_PATTERN_LENGTH) {
-
 
 		// here comes the data
 		if (serialbuffer_index >= SERIAL_BUFFER_SIZE) {
@@ -68,7 +66,6 @@ void process_serial_data(uint8_t data) {
 		}
 		serialbuffer[serialbuffer_index++] = data;
 		if (serialbuffer_index >= EHZ_VALUE_LENGTH || data == ')') {
-			UARTSend2('#');
 
 			// we're expecting 11 bytes of data
 			// * parse data here *
@@ -79,7 +76,6 @@ void process_serial_data(uint8_t data) {
 			for (;i<serialbuffer_index;i++) {
 				d = serialbuffer[i];
 				if (d >= '0' && d <= '9') {
-					//UARTSend2(d);
 					d -= '0';
 					ehz_value *= 10;
 					ehz_value += d;
@@ -99,7 +95,6 @@ void process_serial_data(uint8_t data) {
 		else {
 			search_match = 0;
 		}
-		UARTSend2('0' + search_match);
 	}
 }
 
