@@ -2,5 +2,4 @@
 <h1>Current sensor values</h1><br><table id="sensors">
 <tr><th>ID</th><th>Enabled</th><th>Type</th><th>Address</th><th>Value</th><th>Value 2</th></tr>
 %! sensor-stats
-</div>
 %!: /footer.html

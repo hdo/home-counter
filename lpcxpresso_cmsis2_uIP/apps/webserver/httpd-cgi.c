@@ -59,8 +59,9 @@ HTTPD_CGI_CALL(file, "file-stats", file_stats);
 HTTPD_CGI_CALL(tcp, "tcp-connections", tcp_stats);
 HTTPD_CGI_CALL(net, "net-stats", net_stats);
 HTTPD_CGI_CALL(sensor, "sensor-stats", sensor_stats);
+HTTPD_CGI_CALL(json, "json-output", json_output);
 
-static const struct httpd_cgi_call *calls[] = { &file, &tcp, &net, &sensor, NULL };
+static const struct httpd_cgi_call *calls[] = { &file, &tcp, &net, &sensor, &json, NULL };
 
 /*---------------------------------------------------------------------------*/
 static
@@ -232,6 +233,49 @@ PT_THREAD(sensor_stats(struct httpd_state *s, char *ptr))
   for (s->count = 0; s->count < MAX_SENSORS; s->count++) {
 	  PSOCK_GENERATOR_SEND(&s->sout, generate_sensor_stats, s);
   }
+  PSOCK_END(&s->sout);
+}
+
+/*---------------------------------------------------------------------------*/
+static unsigned short
+generate_json_output(void *arg)
+{
+  struct httpd_state *s = (struct httpd_state *)arg;
+  SENSOR_DATA* sd = get_sensor_by_id(s->count);
+  if (sd) {
+	  char c = ' ';
+	  if (s->count > 0) {
+		  c = ',';
+	  }
+	  return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
+			  "%c{\"id\" : %d, \"enabled\" : %d, \"type\" : \"%s\", \"address\" : %d, \"value\" : %d, \"value2\" : %d}",
+			  c, sd->id,sd->enabled, get_sensor_type(sd->type), sd->address, sd->value,sd->value2);
+  }
+}
+
+static unsigned short
+generate_json_header(void *arg)
+{
+	return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
+			"{\"restart_counter\" : %d, \"version_major\" : %d, \"version_minor\" : %d, \"sensors\" : [\r\n",
+			13, 1, 2);
+}
+static unsigned short
+generate_json_footer(void *arg)
+{
+	return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
+			"\r\n ] }\r\n");
+}
+
+static
+PT_THREAD(json_output(struct httpd_state *s, char *ptr))
+{
+  PSOCK_BEGIN(&s->sout);
+  PSOCK_GENERATOR_SEND(&s->sout, generate_json_header, s);
+  for (s->count = 0; s->count < MAX_SENSORS; s->count++) {
+	  PSOCK_GENERATOR_SEND(&s->sout, generate_json_output, s);
+  }
+  PSOCK_GENERATOR_SEND(&s->sout, generate_json_footer, s);
   PSOCK_END(&s->sout);
 }
 
