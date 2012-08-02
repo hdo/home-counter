@@ -30,6 +30,7 @@
 #include "LPC17xx.h"
 #include "type.h"
 #include "uart.h"
+#include "sensors.h"
 #include "ehz.h"
 #include "leds.h"
 #include <stdio.h>
@@ -62,6 +63,10 @@ int main (void)
 
 	led2_init();
 	led2_on();
+
+	init_sensors();
+	add_ehz(0);
+
 	const char* welcomeMsg = "UART3 Online:\r\n";
 	//SystemInit();	//Called by startup code
 
@@ -86,14 +91,17 @@ int main (void)
 			}
 			UART2Count = 0;
 
-
 			if (ehz_value_parsed > 0) {
+				SENSOR_DATA* sd = get_sensor(SENSOR_TYPE_EHZ, 0);
+				if (sd) {
+					sd->value = ehz_value;
+				}
+
 				uint8_t puffer[20];
 				uint8_t l = sprintf( puffer, "\n\rZaehlerstand: %u\n\r", ehz_value );
 				UARTSend(2, (uint8_t *)puffer, l );
 				ehz_value_parsed = 0;
 			}
-
 
 			LPC_UART2->IER = IER_THRE | IER_RLS | IER_RBR;		/* Re-enable RBR */
 		}
