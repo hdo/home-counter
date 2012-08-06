@@ -19,6 +19,9 @@ volatile uint8_t ehz_value_parsed = 0;
 uint32_t ehz_value = 0;
 
 void ehz_process_serial_data(uint8_t data) {
+	// convert to 7e1
+	data &= 0b01111111;
+
 	if (search_match >= SEARCH_PATTERN_LENGTH) {
 
 		// here comes the data

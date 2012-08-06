@@ -465,7 +465,7 @@ uint32_t UARTInit( uint32_t PortNum, uint32_t baudrate )
  	  LPC_UART2->LCR = 0x83;		/* 8 bits, no Parity, 1 Stop bit */
 
  	  /* 7e1 */
- 	  // LPC_UART1->LCR = 0x92;		/* 7 bits, even Parity, 1 Stop bit */
+ 	  //LPC_UART1->LCR = 0x92;		/* 7 bits, even Parity, 1 Stop bit */
 
  	  Fdiv = ( pclk / 16 ) / baudrate ;	/*baud rate */
  	  LPC_UART2->DLM = Fdiv / 256;
