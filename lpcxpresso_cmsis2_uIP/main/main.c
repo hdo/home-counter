@@ -40,7 +40,7 @@
 // *********************************************************************
 #define MYIP_1	192
 #define MYIP_2	168
-#define MYIP_3	1
+#define MYIP_3	2
 #define MYIP_4	200
 
 
