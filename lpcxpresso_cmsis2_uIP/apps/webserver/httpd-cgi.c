@@ -257,14 +257,14 @@ static unsigned short
 generate_json_header(void *arg)
 {
 	return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
-			"{\"restart_counter\" : %d, \"version_major\" : %d, \"version_minor\" : %d, \"sensors\" : [\r\n",
+			"{\"restart_counter\" : %d, \"version_major\" : %d, \"version_minor\" : %d, \"sensors\" : [",
 			13, 1, 2);
 }
 static unsigned short
 generate_json_footer(void *arg)
 {
 	return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
-			"\r\n ] }\r\n");
+			" ] }");
 }
 
 static
