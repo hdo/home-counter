@@ -55,6 +55,7 @@
 #include "sensors.h"
 #include "ehz.h"
 #include "leds.h"
+#include "clock-arch.h"
 
 #include <cr_section_macros.h>
 #include <NXP/crp.h>
@@ -88,6 +89,11 @@ extern volatile uint32_t UART2Count;
 extern volatile uint8_t UART2Buffer[BUFSIZE];
 extern volatile uint8_t ehz_value_parsed;
 extern uint32_t ehz_value;
+uint32_t old_ehz_value = 0;
+uint32_t last_ehz_value = 0;
+uint32_t last_ehz_msTicks = 0;
+
+
 
 
 int main(void)
@@ -194,18 +200,6 @@ int main(void)
 		          tapdev_send(uip_buf,uip_len);
 		        }
       		}
-#if UIP_UDP
-			for(i = 0; i < UIP_UDP_CONNS; i++) {
-				uip_udp_periodic(i);
-				/* If the above function invocation resulted in data that
-				   should be sent out on the network, the global variable
-				   uip_len is set to a value > 0. */
-				if(uip_len > 0) {
-				  uip_arp_out();
-				  tapdev_send();
-				}
-			}
-#endif /* UIP_UDP */
 	     	/* Call the ARP timer function every 10 seconds. */
 			if(timer_expired(&arp_timer))
 			{
@@ -225,17 +219,51 @@ int main(void)
 			UART2Count = 0;
 
 			if (ehz_value_parsed > 0) {
-				SENSOR_DATA* sd = get_sensor(SENSOR_TYPE_EHZ, 0);
-				if (sd) {
-					sd->value = ehz_value;
+				if (old_ehz_value == 0) {
+					old_ehz_value = ehz_value;
 				}
+				if (ehz_value >= old_ehz_value) {
+					uint32_t current_msTicks = clock_time(); // one tick equals 10ms see lpc17xx_systick.h
+					SENSOR_DATA* sd = get_sensor(SENSOR_TYPE_EHZ, 0);
+					if (sd) {
+						sd->value = ehz_value;
+						if (last_ehz_value == 0) {
+							last_ehz_value = ehz_value;
+						}
+						else {
+							uint32_t diff = 0;
+							if (current_msTicks > last_ehz_msTicks) {
+								diff = current_msTicks - last_ehz_msTicks;
+							}
+							else {
+								// check for timer overflow
+								diff = UINT32_MAX - last_ehz_msTicks + current_msTicks;
+							}
+							// 10 seconds
+							if (diff > 1000) {
+								uint32_t estimated = (ehz_value - last_ehz_value) / diff * 360000;
 
-				uint8_t puffer[20];
-				uint8_t l = sprintf( puffer, "\n\rZaehlerstand: %u\n\r", ehz_value );
-				UARTSend(2, (uint8_t *)puffer, l );
+								/* update value */
+								sd->value2 = estimated;
+
+								last_ehz_msTicks = current_msTicks;
+								last_ehz_value = ehz_value;
+							}
+						}
+					}
+				}
+				else {
+					// log error
+					SENSOR_DATA* sd = get_sensor(SENSOR_TYPE_EHZ, 0);
+					if (sd) {
+						sd->errors++;
+					}
+				}
 				ehz_value_parsed = 0;
+				//uint8_t puffer[20];
+				//uint8_t l = sprintf( puffer, "\n\rZaehlerstand: %u\n\r", ehz_value );
+				//UARTSend(2, (uint8_t *)puffer, l );
 			}
-
 			LPC_UART2->IER = IER_THRE | IER_RLS | IER_RBR;		/* Re-enable RBR */
 		}
 		else {
