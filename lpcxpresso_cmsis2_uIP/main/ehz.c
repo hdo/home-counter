@@ -31,7 +31,7 @@ void ehz_process_serial_data(uint8_t data) {
 			search_match = 0;
 		}
 		serialbuffer[serialbuffer_index++] = data;
-		if (serialbuffer_index >= EHZ_VALUE_LENGTH || data == ')') {
+		if (serialbuffer_index >= EHZ_VALUE_LENGTH) {
 
 			// we're expecting 11 bytes of data
 			// * parse data here *
@@ -39,9 +39,11 @@ void ehz_process_serial_data(uint8_t data) {
 			uint8_t d;
 			// atoi conversion, ignoring non-digits
 			ehz_value = 0;
+			uint8_t digits = 0;
 			for (;i<serialbuffer_index;i++) {
 				d = serialbuffer[i];
 				if (d >= '0' && d <= '9') {
+					digits++;
 					d -= '0';
 					ehz_value *= 10;
 					ehz_value += d;
@@ -51,7 +53,18 @@ void ehz_process_serial_data(uint8_t data) {
 			// reset buffer
 			serialbuffer_index = 0;
 			search_match = 0;
-			ehz_value_parsed = 1;
+
+			// we're expecting 10 digits for correctly parsed values
+			// e.g.
+			// 1*255(008433.1524)
+			// 1*255(008433.1531)
+			// 1*255(008433.1614)
+			if (digits == EHZ_EXPECTED_DIGITS) {
+				ehz_value_parsed = 1;
+			}
+			else {
+				// log error
+			}
 		}
 	}
 	else {
