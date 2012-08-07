@@ -19,6 +19,7 @@ void init_sensors() {
 		sensor_data[i].type = SENSOR_TYPE_NONE;
 		sensor_data[i].value = 0;
 		sensor_data[i].value2 = 0;
+		sensor_data[i].errors = 0;
 	}
 }
 

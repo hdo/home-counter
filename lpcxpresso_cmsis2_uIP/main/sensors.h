@@ -15,6 +15,7 @@ typedef struct sensordata {
     uint8_t address;
     uint32_t value;
     uint32_t value2;
+    uint32_t errors;
 } SENSOR_DATA;
 
 void init_sensors();
