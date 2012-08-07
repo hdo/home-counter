@@ -229,6 +229,7 @@ int main(void)
 						sd->value = ehz_value;
 						if (last_ehz_value == 0) {
 							last_ehz_value = ehz_value;
+							last_ehz_msTicks = current_msTicks;
 						}
 						else {
 							uint32_t diff = 0;
@@ -254,6 +255,7 @@ int main(void)
 				}
 				else {
 					// log error
+					// value is expected to be greater than previous value
 					SENSOR_DATA* sd = get_sensor(SENSOR_TYPE_EHZ, 0);
 					if (sd) {
 						sd->errors++;
