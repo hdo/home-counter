@@ -216,13 +216,13 @@ generate_sensor_stats(void *arg)
   SENSOR_DATA* sd = get_sensor_by_id(s->count);
   if (sd) {
 	  return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
-			  "<tr%s><td>%d</td><td>%d</td><td>%s</td><td>%d</td><td>%d</td><td>%d</td></tr>\r\n",
-			  css, sd->id,sd->enabled, get_sensor_type(sd->type), sd->address, sd->value,sd->value2);
+			  "<tr%s><td>%d</td><td>%d</td><td>%s</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td></tr>\r\n",
+			  css, sd->id,sd->enabled, get_sensor_type(sd->type), sd->address, sd->value,sd->value2,sd->errors);
   }
   else {
 	  return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
-			  "<tr%s><td>%d</td><td>%d</td><td>%d</td></tr>\r\n",
-			  css, -1, -1, -1, -1, -1, -1);
+			  "<tr%s><td>%d</td><td>%d</td><td>%d</td><td>%d</td></tr>\r\n",
+			  css, -1, -1, -1, -1, -1, -1, -1);
   }
 }
 
