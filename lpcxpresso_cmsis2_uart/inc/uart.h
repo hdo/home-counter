@@ -58,6 +58,7 @@ void UART2_IRQHandler( void );
 void UART3_IRQHandler( void );
 void UARTSend( uint32_t portNum, uint8_t *BufferPtr, uint32_t Length );
 void UARTSend2(uint8_t data);
+uint8_t UART2TXReady();
 
 #endif /* end __UART_H */
 /*****************************************************************************

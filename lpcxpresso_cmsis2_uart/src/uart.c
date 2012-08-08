@@ -558,14 +558,24 @@ void UARTSend( uint32_t portNum, uint8_t *BufferPtr, uint32_t Length )
   }
   else if (portNum == 2)
   {
+	// wait until tx buffer is empty
+    while ( !(UART2TxEmpty & 0x01) );
 	while ( Length != 0 )
     {
 	  /* THRE status, contain valid data */
-	  while ( !(UART2TxEmpty & 0x01) );
+	  /* since FIFO can hold 16 bytes we only
+	   * need to check Emtpy bit each 16 bytes
+	   * here we do the check every 14 bytes
+	   */
+
+	  if (!(Length % 14)) {
+		  while ( !(UART2TxEmpty & 0x01) );
+	  }
+
 	  LPC_UART2->THR = *BufferPtr;
-	  UART2TxEmpty = 0;	/* not empty in the THR until it shifts out */
 	  BufferPtr++;
 	  Length--;
+	  UART2TxEmpty = 0;
     }
   }
   else if ( portNum == 3 )
@@ -590,6 +600,9 @@ void UARTSend2(uint8_t data) {
 	UART2TxEmpty = 0;	/* not empty in the THR until it shifts out */
 }
 
+uint8_t UART2TXReady() {
+	return UART2TxEmpty;
+}
 /******************************************************************************
 **                            End Of File
 ******************************************************************************/
