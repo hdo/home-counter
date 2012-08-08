@@ -1,11 +1,13 @@
 #ifndef __LOGGER_H
 #define __LOGGER_H
 
-#define LOGGER_BUFFER_SIZE 256
+#define LOGGER_BUFFER_SIZE 128
 
 
 void logger_logString(char* data);
+void logger_logStringln(char* data);
 void logger_logNumber(uint32_t value);
+void logger_logNumberln(uint32_t value);
 void logger_logCRLF();
 void logger_logByte(uint8_t data);
 uint8_t logger_isEmpty();

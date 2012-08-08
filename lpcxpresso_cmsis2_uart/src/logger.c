@@ -21,10 +21,19 @@ void logger_logString(char* data) {
 	}
 }
 
+void logger_logStringln(char* data) {
+	logger_logString(data);
+	logger_logCRLF();
+}
 void logger_logNumber(uint32_t value) {
 	char buf[10];
 	itoa(value, buf, 10);
 	logger_logString((char*) buf);
+}
+
+void logger_logNumberln(uint32_t value) {
+	logger_logNumber(value);
+	logger_logCRLF();
 }
 
 void logger_logCRLF() {
