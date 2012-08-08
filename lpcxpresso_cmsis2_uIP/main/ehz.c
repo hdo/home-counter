@@ -8,6 +8,7 @@
 #include "LPC17xx.h"
 #include "uart.h"
 #include "ehz.h"
+#include "logger.h"
 
 /* we're looking for pattern  "1*255(" */
 const uint8_t search_pattern[SEARCH_PATTERN_LENGTH] = {0x31,0x2A,0x32,0x35,0x35,0x28};
@@ -20,8 +21,7 @@ uint32_t ehz_value = 0;
 
 void ehz_process_serial_data(uint8_t data) {
 	// convert to 7e1
-	data &= 0b01111111;
-
+	data &=0b01111111;
 	if (search_match >= SEARCH_PATTERN_LENGTH) {
 
 		// here comes the data
@@ -29,9 +29,10 @@ void ehz_process_serial_data(uint8_t data) {
 			// error (should not happen)
 			serialbuffer_index = 0;
 			search_match = 0;
+			logger_logStringln("ehz: unexpected buffer overflow");
 		}
 		serialbuffer[serialbuffer_index++] = data;
-		if (serialbuffer_index >= EHZ_VALUE_LENGTH) {
+		if (serialbuffer_index >= EHZ_VALUE_LENGTH || data == ')') {
 
 			// we're expecting 11 bytes of data
 			// * parse data here *
@@ -64,12 +65,17 @@ void ehz_process_serial_data(uint8_t data) {
 			}
 			else {
 				// log error
+				logger_logString("ehz: parsing error digits: ");
+				logger_logNumberln(digits);
 			}
 		}
 	}
 	else {
 		if (data == search_pattern[search_match]) {
 			search_match++;
+			if (search_match == SEARCH_PATTERN_LENGTH) {
+				logger_logStringln("ehz: triggered");
+			}
 		}
 		else {
 			search_match = 0;
