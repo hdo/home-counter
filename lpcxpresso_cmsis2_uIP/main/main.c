@@ -134,8 +134,6 @@ int main(void)
 	while(clock_time() - currentms < 300);
 	UARTSendStringln(2, " done");
 
-	led2_off();
-
 	UARTSendString(2, "init ethernet ...");
 	
 	// ethernet init
@@ -161,6 +159,7 @@ int main(void)
 	UARTSendStringln(2, " done");
 
 	UARTSendStringln(2, "entering main loop ...");
+	led2_off();
 	while(1)
 	{
 
