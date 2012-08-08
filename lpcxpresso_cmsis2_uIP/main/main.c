@@ -43,6 +43,7 @@
 #define MYIP_3	2
 #define MYIP_4	200
 
+#define BUILD_ID "20120808-140153"
 
 #include "LPC17xx.h"
 
