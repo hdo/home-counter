@@ -51,13 +51,19 @@
 
 #define BUFSIZE		0x40
 
-uint32_t UARTInit( uint32_t portNum, uint32_t Baudrate );
+uint32_t UARTInit( uint8_t portNum, uint32_t Baudrate );
 void UART0_IRQHandler( void );
 void UART1_IRQHandler( void );
 void UART2_IRQHandler( void );
 void UART3_IRQHandler( void );
-void UARTSend( uint32_t portNum, uint8_t *BufferPtr, uint32_t Length );
-void UARTSend2(uint8_t data);
+void UARTSend( uint8_t portNum, uint8_t *BufferPtr, uint32_t Length );
+void UARTSendByte( uint8_t portNum, uint8_t data);
+void UARTSendString( uint8_t portNum, char* data);
+void UARTSendStringln( uint8_t portNum, char* data);
+void UARTSendNumber( uint8_t portNum, uint32_t value);
+void UARTSendNumberln( uint8_t portNum, uint32_t value);
+void UARTSendCRLF( uint8_t portNum);
+uint8_t UARTTXReady(uint8_t portNum);
 
 #endif /* end __UART_H */
 /*****************************************************************************

@@ -28,8 +28,10 @@
  *
 ******************************************************************************/
 #include "LPC17xx.h"
-#include "uart.h"
 #include "type.h"
+#include "uart.h"
+#include <stdlib.h>
+
 
 volatile uint32_t UART0Status, UART1Status, UART2Status, UART3Status;
 volatile uint8_t UART0TxEmpty = 1, UART1TxEmpty = 1, UART2TxEmpty = 1, UART3TxEmpty=1;
@@ -338,7 +340,7 @@ void UART3_IRQHandler (void)
 **						VIC table
 ** 
 *****************************************************************************/
-uint32_t UARTInit( uint32_t PortNum, uint32_t baudrate )
+uint32_t UARTInit( uint8_t PortNum, uint32_t baudrate )
 {
   uint32_t Fdiv;
   uint32_t pclkdiv, pclk;
@@ -465,7 +467,7 @@ uint32_t UARTInit( uint32_t PortNum, uint32_t baudrate )
  	  LPC_UART2->LCR = 0x83;		/* 8 bits, no Parity, 1 Stop bit */
 
  	  /* 7e1 */
- 	  //LPC_UART1->LCR = 0x92;		/* 7 bits, even Parity, 1 Stop bit */
+ 	  // LPC_UART1->LCR = 0x92;		/* 7 bits, even Parity, 1 Stop bit */
 
  	  Fdiv = ( pclk / 16 ) / baudrate ;	/*baud rate */
  	  LPC_UART2->DLM = Fdiv / 256;
@@ -530,7 +532,7 @@ uint32_t UARTInit( uint32_t PortNum, uint32_t baudrate )
 ** Returned value:		None
 ** 
 *****************************************************************************/
-void UARTSend( uint32_t portNum, uint8_t *BufferPtr, uint32_t Length )
+void UARTSend( uint8_t portNum, uint8_t *BufferPtr, uint32_t Length )
 {
   if ( portNum == 0 )
   {
@@ -558,14 +560,24 @@ void UARTSend( uint32_t portNum, uint8_t *BufferPtr, uint32_t Length )
   }
   else if (portNum == 2)
   {
+	// wait until tx buffer is empty
+    while ( !(UART2TxEmpty & 0x01) );
 	while ( Length != 0 )
     {
 	  /* THRE status, contain valid data */
-	  while ( !(UART2TxEmpty & 0x01) );
+	  /* since FIFO can hold 16 bytes we only
+	   * need to check Emtpy bit each 16 bytes
+	   * here we do the check every 14 bytes
+	   */
+
+	  if (!(Length % 14)) {
+		  while ( !(UART2TxEmpty & 0x01) );
+	  }
+
 	  LPC_UART2->THR = *BufferPtr;
-	  UART2TxEmpty = 0;	/* not empty in the THR until it shifts out */
 	  BufferPtr++;
 	  Length--;
+	  UART2TxEmpty = 0;
     }
   }
   else if ( portNum == 3 )
@@ -583,13 +595,70 @@ void UARTSend( uint32_t portNum, uint8_t *BufferPtr, uint32_t Length )
   return;
 }
 
-void UARTSend2(uint8_t data) {
-	/* THRE status, contain valid data */
-	while ( !(UART2TxEmpty & 0x01) );
-	LPC_UART2->THR = data;
-	UART2TxEmpty = 0;	/* not empty in the THR until it shifts out */
+void UARTSendByte(uint8_t portNum, uint8_t data) {
+	if (portNum == 0) {
+		/* THRE status, contain valid data */
+		while ( !(UART0TxEmpty & 0x01) );
+		LPC_UART0->THR = data;
+		UART0TxEmpty = 0;	/* not empty in the THR until it shifts out */
+	} else if (portNum == 1) {
+		/* THRE status, contain valid data */
+		while ( !(UART1TxEmpty & 0x01) );
+		LPC_UART1->THR = data;
+		UART1TxEmpty = 0;	/* not empty in the THR until it shifts out */
+	} else if (portNum == 2) {
+		/* THRE status, contain valid data */
+		while ( !(UART2TxEmpty & 0x01) );
+		LPC_UART2->THR = data;
+		UART2TxEmpty = 0;	/* not empty in the THR until it shifts out */
+	} else if (portNum == 3) {
+		/* THRE status, contain valid data */
+		while ( !(UART3TxEmpty & 0x01) );
+		LPC_UART3->THR = data;
+		UART3TxEmpty = 0;	/* not empty in the THR until it shifts out */
+	}
 }
 
+void UARTSendString( uint8_t portNum, char* data) {
+	while(*data) {
+		UARTSendByte(portNum, *data++);
+	}
+}
+
+void UARTSendStringln( uint8_t portNum, char* data) {
+	UARTSendString(portNum, data);
+	UARTSendCRLF(portNum);
+}
+
+void UARTSendNumber( uint8_t portNum, uint32_t value) {
+	char buf[10];
+	itoa(value, buf, 10);
+	UARTSendString(portNum, (char*) buf);
+}
+
+void UARTSendNumberln( uint8_t portNum, uint32_t value) {
+	UARTSendNumber(portNum, value);
+	UARTSendCRLF(portNum);
+}
+
+void UARTSendCRLF( uint8_t portNum) {
+	UARTSendByte(portNum, 13);
+	UARTSendByte(portNum, 10);
+}
+
+
+uint8_t UARTTXReady(uint8_t portNum){
+	if (portNum == 0) {
+		return UART0TxEmpty;
+	} else if (portNum == 1) {
+		return UART1TxEmpty;
+	} else if (portNum == 2) {
+		return UART2TxEmpty;
+	} else if (portNum == 3) {
+		return UART3TxEmpty;
+	}
+	return 0;
+}
 /******************************************************************************
 **                            End Of File
 ******************************************************************************/
