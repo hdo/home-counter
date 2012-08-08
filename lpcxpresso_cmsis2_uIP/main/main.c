@@ -130,18 +130,23 @@ int main(void)
 	logger_logStringln("log online ...");
 
 	volatile int currentms = clock_time() ;
-	UARTSendStringln(2, "wait 3s ...");
+	UARTSendString(2, "wait 3s ...");
 	while(clock_time() - currentms < 300);
-	UARTSendStringln(2, "done ...");
+	UARTSendStringln(2, " done");
 
 	led2_off();
 
+	UARTSendString(2, "init ethernet ...");
 	
 	// ethernet init
 	tapdev_init();
 
+	UARTSendStringln(2, " done");
+
+	UARTSendString(2, "init TCP/IP stack ...");
 	// Initialize the uIP TCP/IP stack.
 	uip_init();
+	UARTSendStringln(2, " done");
 
 	uip_ipaddr(ipaddr, MYIP_1,MYIP_2,MYIP_3,MYIP_4);
 	uip_sethostaddr(ipaddr);	/* host IP address */
@@ -150,10 +155,12 @@ int main(void)
 	uip_ipaddr(ipaddr, 255,255,255,0);
 	uip_setnetmask(ipaddr);	/* mask */
 
+	UARTSendString(2, "init httpd ...");
 	// Initialize the HTTP server, listen to port 80.
 	httpd_init();
+	UARTSendStringln(2, " done");
 
-
+	UARTSendStringln(2, "entering main loop ...");
 	while(1)
 	{
 
