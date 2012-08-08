@@ -71,21 +71,20 @@ int main (void)
 
 	UARTInit(2, 9600);	/* baud rate setting */
 
-	const char* welcomeMsg = "\r\nUART2 Online:\r\n";
-	UARTSend(2, (uint8_t *)welcomeMsg , strlen(welcomeMsg) );
+	//const char* welcomeMsg = "\r\nUART2 Online:\r\n";
+	//UARTSend(2, (uint8_t *)welcomeMsg , strlen(welcomeMsg) );
+	UARTSendStringln(2, "UART2 online ...");
 	logger_logStringln("logger online ...");
 	led2_off();
 	volatile int currentms = msTicks ;
-
-	uint8_t state = 0;
 
 	/* Loop forever */
 	while (1)
 	{
 
-		if (logger_dataAvailable() && UART2TXReady()) {
+		if (logger_dataAvailable() && UARTTXReady(2)) {
 			uint8_t data = logger_read();
-			UARTSend2(data);
+			UARTSendByte(2, data);
 		}
 
 		if ( UART2Count != 0 )
