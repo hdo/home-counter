@@ -6,7 +6,6 @@
  */
 
 #include "LPC17xx.h"
-#include "type.h"
 #include "sensors.h"
 
 SENSOR_DATA sensor_data[MAX_SENSORS];
@@ -20,12 +19,22 @@ void init_sensors() {
 		sensor_data[i].type = SENSOR_TYPE_NONE;
 		sensor_data[i].value = 0;
 		sensor_data[i].value2 = 0;
+		sensor_data[i].errors = 0;
 	}
 }
 
 void add_ehz(uint8_t addr) {
 	sensor_data[addr].enabled = 1;
 	sensor_data[addr].type = SENSOR_TYPE_EHZ;
+}
+
+SENSOR_DATA* get_sensor_by_id(uint8_t id) {
+	if (id < MAX_SENSORS) {
+		return &sensor_data[id];
+	}
+	else {
+		return 0;
+	}
 }
 
 SENSOR_DATA* get_sensor(uint8_t type, uint8_t addr) {
@@ -36,6 +45,16 @@ SENSOR_DATA* get_sensor(uint8_t type, uint8_t addr) {
 		}
 	}
 	return 0;
+}
+
+char* get_sensor_type(uint8_t type) {
+	switch(type) {
+	case SENSOR_TYPE_NONE : return "NONE";
+	case SENSOR_TYPE_EHZ : return "EHZ";
+	case SENSOR_TYPE_S0 : return "S0";
+	case SENSOR_TYPE_MBUS : return "MBUS";
+	}
+	return "UNDEFINED";
 }
 
 
