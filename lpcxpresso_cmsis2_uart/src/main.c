@@ -33,6 +33,7 @@
 #include "sensors.h"
 #include "ehz.h"
 #include "leds.h"
+#include "logger.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -56,8 +57,8 @@ int main (void)
 {
 
 	// INIT SYSTICK
-	// Setup SysTick Timer to interrupt at 10 msec intervals
-	if (SysTick_Config(SystemCoreClock / 100)) {
+	// Setup SysTick Timer to interrupt at 1 msec intervals
+	if (SysTick_Config(SystemCoreClock / 1000)) {
 	    while (1);  // Capture error
 	}
 
@@ -67,7 +68,8 @@ int main (void)
 	init_sensors();
 	add_ehz(0);
 
-	const char* welcomeMsg = "UART3 Online:\r\n";
+	const char* welcomeMsg = "\r\nUART2 Online:\r\n";
+	//const char* welcomeMsg = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et e\r\n";
 	//SystemInit();	//Called by startup code
 
 	UARTInit(2, 9600);	/* baud rate setting */
@@ -75,10 +77,46 @@ int main (void)
 	led2_off();
 	volatile int currentms = msTicks ;
 
+	uint8_t state = 0;
 
 	/* Loop forever */
+	const char* msg = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores \r\n";
 	while (1)
 	{
+		if (state == 0) {
+			state++;
+			uint32_t start = msTicks;
+			UARTSend(2, (uint8_t *)msg , strlen(msg) );
+			uint32_t stop = msTicks;
+			uint32_t diff = stop - start;
+			uint8_t puffer[20];
+			uint8_t l = sprintf( puffer, "\r\nsend took %u ticks\r\n", diff );
+			UARTSend(2, (uint8_t *)puffer, l );
+			continue;
+		}
+		if (state == 1) {
+			state++;
+			uint32_t start = msTicks;
+			logger_logString(msg);
+			uint32_t stop = msTicks;
+			uint32_t diff = stop - start;
+			logger_logString("\r\nlog took ");
+			logger_logNumber(diff);
+			logger_logString(" ticks\r\n");
+			continue;
+		}
+		if (state == 2) {
+			state++;
+			logger_logString("done");
+			logger_logCRLF();
+			continue;
+		}
+
+		if (logger_dataAvailable() && UART2TXReady()) {
+			uint8_t data = logger_read();
+			UARTSend2(data);
+		}
+
 		if ( UART2Count != 0 )
 		{
 			led2_on();
@@ -106,7 +144,7 @@ int main (void)
 			LPC_UART2->IER = IER_THRE | IER_RLS | IER_RBR;		/* Re-enable RBR */
 		}
 		else {
-			if (msTicks - currentms > 5) {
+			if (msTicks - currentms > 50) {
 				led2_off();
 			}
 		}
