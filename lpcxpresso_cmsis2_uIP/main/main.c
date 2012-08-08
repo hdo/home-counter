@@ -56,6 +56,7 @@
 #include "ehz.h"
 #include "leds.h"
 #include "clock-arch.h"
+#include "logger.h"
 
 #include <cr_section_macros.h>
 #include <NXP/crp.h>
@@ -125,8 +126,14 @@ int main(void)
 
 
 	UARTInit(2, 9600);	/* baud rate setting */
-	const char* welcomeMsg = "UART3 Online:\r\n";
-	UARTSend(2, (uint8_t *)welcomeMsg , strlen(welcomeMsg) );
+	UARTSendStringln(2, "UART2 online ...");
+	logger_logStringln("log online ...");
+
+	volatile int currentms = clock_time() ;
+	UARTSendStringln(2, "wait 3s ...");
+	while(clock_time() - currentms < 300);
+	UARTSendStringln(2, "done ...");
+
 	led2_off();
 
 	
@@ -149,6 +156,14 @@ int main(void)
 
 	while(1)
 	{
+
+		/* process logger */
+		if (logger_dataAvailable() && UARTTXReady(2)) {
+			uint8_t data = logger_read();
+			UARTSendByte(2,data);
+		}
+
+
  	    /* receive packet and put in uip_buf */
 		uip_len = tapdev_read(uip_buf);
     	if(uip_len > 0)		/* received packet */
@@ -223,10 +238,14 @@ int main(void)
 					old_ehz_value = ehz_value;
 				}
 				if (ehz_value >= old_ehz_value) {
+					old_ehz_value = ehz_value;
 					uint32_t current_msTicks = clock_time(); // one tick equals 10ms see lpc17xx_systick.h
 					SENSOR_DATA* sd = get_sensor(SENSOR_TYPE_EHZ, 0);
 					if (sd) {
 						sd->value = ehz_value;
+						logger_logString("main: ehz value: ");
+						logger_logNumberln(ehz_value);
+
 						if (last_ehz_value == 0) {
 							last_ehz_value = ehz_value;
 							last_ehz_msTicks = current_msTicks;
@@ -240,12 +259,20 @@ int main(void)
 								// check for timer overflow
 								diff = UINT32_MAX - last_ehz_msTicks + current_msTicks;
 							}
+							logger_logString("diff ticks: ");
+							logger_logNumberln(diff);
+							uint32_t diffv = ehz_value - last_ehz_value;
+							logger_logString("diff value: ");
+							logger_logNumberln(diffv);
 							// 10 seconds
 							if (diff > 1000) {
-								uint32_t estimated = (ehz_value - last_ehz_value) / diff * 360000;
+								uint32_t estimated = diffv * 360000 / diff;
 
 								/* update value */
 								sd->value2 = estimated;
+
+								logger_logString("main: estimated ehz value: ");
+								logger_logNumberln(estimated);
 
 								last_ehz_msTicks = current_msTicks;
 								last_ehz_value = ehz_value;
@@ -259,13 +286,17 @@ int main(void)
 					SENSOR_DATA* sd = get_sensor(SENSOR_TYPE_EHZ, 0);
 					if (sd) {
 						sd->errors++;
+						logger_logString("main: error count: ");
+						logger_logNumberln(sd->errors);
 					}
+					logger_logString("main: unexpected ehz value: ");
+					logger_logNumber(ehz_value);
+					logger_logString(" old value: ");
+					logger_logNumberln(old_ehz_value);
 				}
 				ehz_value_parsed = 0;
-				//uint8_t puffer[20];
-				//uint8_t l = sprintf( puffer, "\n\rZaehlerstand: %u\n\r", ehz_value );
-				//UARTSend(2, (uint8_t *)puffer, l );
 			}
+
 			LPC_UART2->IER = IER_THRE | IER_RLS | IER_RBR;		/* Re-enable RBR */
 		}
 		else {
