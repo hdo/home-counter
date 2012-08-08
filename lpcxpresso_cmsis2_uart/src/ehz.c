@@ -6,9 +6,9 @@
  */
 
 #include "LPC17xx.h"
-#include "type.h"
 #include "uart.h"
 #include "ehz.h"
+#include "logger.h"
 
 /* we're looking for pattern  "1*255(" */
 const uint8_t search_pattern[SEARCH_PATTERN_LENGTH] = {0x31,0x2A,0x32,0x35,0x35,0x28};
@@ -29,6 +29,7 @@ void ehz_process_serial_data(uint8_t data) {
 			// error (should not happen)
 			serialbuffer_index = 0;
 			search_match = 0;
+			logger_logStringln("ehz: unexpected buffer overflow");
 		}
 		serialbuffer[serialbuffer_index++] = data;
 		if (serialbuffer_index >= EHZ_VALUE_LENGTH || data == ')') {
@@ -39,9 +40,11 @@ void ehz_process_serial_data(uint8_t data) {
 			uint8_t d;
 			// atoi conversion, ignoring non-digits
 			ehz_value = 0;
+			uint8_t digits = 0;
 			for (;i<serialbuffer_index;i++) {
 				d = serialbuffer[i];
 				if (d >= '0' && d <= '9') {
+					digits++;
 					d -= '0';
 					ehz_value *= 10;
 					ehz_value += d;
@@ -51,12 +54,28 @@ void ehz_process_serial_data(uint8_t data) {
 			// reset buffer
 			serialbuffer_index = 0;
 			search_match = 0;
-			ehz_value_parsed = 1;
+
+			// we're expecting 10 digits for correctly parsed values
+			// e.g.
+			// 1*255(008433.1524)
+			// 1*255(008433.1531)
+			// 1*255(008433.1614)
+			if (digits == EHZ_EXPECTED_DIGITS) {
+				ehz_value_parsed = 1;
+			}
+			else {
+				// log error
+				logger_logString("ehz: parsing error digits: ");
+				logger_logNumberln(digits);
+			}
 		}
 	}
 	else {
 		if (data == search_pattern[search_match]) {
 			search_match++;
+			if (search_match == SEARCH_PATTERN_LENGTH) {
+				logger_logStringln("ehz: triggered");
+			}
 		}
 		else {
 			search_match = 0;
