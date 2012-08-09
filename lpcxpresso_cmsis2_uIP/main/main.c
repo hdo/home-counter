@@ -43,7 +43,6 @@
 #define MYIP_3	2
 #define MYIP_4	200
 
-#define BUILD_ID "20120808-140153"
 
 #include "LPC17xx.h"
 
@@ -58,6 +57,7 @@
 #include "leds.h"
 #include "clock-arch.h"
 #include "logger.h"
+#include "version.h"
 
 #include <cr_section_macros.h>
 #include <NXP/crp.h>
@@ -127,7 +127,19 @@ int main(void)
 
 
 	UARTInit(2, 9600);	/* baud rate setting */
+	UARTSendCRLF(2);
+	UARTSendCRLF(2);
 	UARTSendStringln(2, "UART2 online ...");
+
+	UARTSendString(2, PRODUCT_NAME);
+	UARTSendString(2, " v");
+	UARTSendNumber(2, VERSION_MAJOR);
+	UARTSendString(2, ".");
+	UARTSendNumber(2, VERSION_MINOR);
+	UARTSendString(2, " BUILD ID ");
+	UARTSendStringln(2, VERSION_BUILD_ID);
+	UARTSendCRLF(2);
+
 	logger_logStringln("log online ...");
 
 	volatile int currentms = clock_time() ;
