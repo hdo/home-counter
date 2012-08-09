@@ -28,6 +28,11 @@ void add_ehz(uint8_t addr) {
 	sensor_data[addr].type = SENSOR_TYPE_EHZ;
 }
 
+void add_s0(uint8_t addr) {
+	sensor_data[addr].enabled = 1;
+	sensor_data[addr].type = SENSOR_TYPE_S0;
+}
+
 SENSOR_DATA* get_sensor_by_id(uint8_t id) {
 	if (id < MAX_SENSORS) {
 		return &sensor_data[id];
