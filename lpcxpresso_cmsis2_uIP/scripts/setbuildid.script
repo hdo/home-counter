@@ -1,1 +1,0 @@
-sed -i "s/BUILD_ID.*$/BUILD_ID \"`date +"%Y%m%d-%H%M%S"`\"/g" ../main/version.h
