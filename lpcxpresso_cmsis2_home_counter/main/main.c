@@ -139,11 +139,14 @@ int main(void)
 	while(clock_time() - currentms < 300);
 	UARTSendStringln(2, " done");
 
-	UARTSendString(2, "init ethernet ...");
-	
 	// ethernet init
-	tapdev_init();
+	UARTSendString(2, "init ehz ...");
+	ehz_init();
+	UARTSendStringln(2, " done");
 
+	// ethernet init
+	UARTSendString(2, "init ethernet ...");
+	tapdev_init();
 	UARTSendStringln(2, " done");
 
 	UARTSendString(2, "init TCP/IP stack ...");
