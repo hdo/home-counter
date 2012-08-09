@@ -37,7 +37,7 @@ void logger_logCRLF() {
 	logger_logByte(10);
 }
 
-volatile void logger_logByte(uint8_t data) {
+void logger_logByte(uint8_t data) {
 	if (!logger_isFull()) {
 		rbuffer[rbuffer_tail++] = data;
 		rbuffer_count++;
@@ -47,7 +47,7 @@ volatile void logger_logByte(uint8_t data) {
 	}
 }
 
-volatile uint8_t logger_read() {
+uint8_t logger_read() {
 	if (rbuffer_count > 0) {
 		uint8_t data = rbuffer[rbuffer_head++];
 		rbuffer_count--;
@@ -59,18 +59,18 @@ volatile uint8_t logger_read() {
 	return 0;
 }
 
-volatile uint8_t logger_isEmpty() {
+uint8_t logger_isEmpty() {
 	return rbuffer_count == 0;
 }
 
-volatile uint8_t logger_isFull() {
+uint8_t logger_isFull() {
 	return rbuffer_count == LOGGER_BUFFER_SIZE;
 }
 
-volatile uint8_t logger_dataAvailable() {
+uint8_t logger_dataAvailable() {
 	return rbuffer_count > 0;
 }
 
-volatile uint8_t logger_count() {
+uint8_t logger_count() {
 	return rbuffer_count;
 }
