@@ -195,6 +195,7 @@ int main(void)
 		}
 
 		/* process S0 input */
+		/* DEBOUNCING 1/2 */
 		if (!s0_active) {
 			s0_newState = ~LPC_GPIO2->FIOPIN & (S0_INPUT0 | S0_INPUT1 | S0_INPUT2 | S0_INPUT3 );
 			if (s0_oldState != s0_newState) {
@@ -203,6 +204,7 @@ int main(void)
 			}
 		}
 
+		/* DEBOUNCING 2/2 */
 		if (s0_active && s0_msticks != clock_time()) {
 			s0_state = ~LPC_GPIO2->FIOPIN & (S0_INPUT0 | S0_INPUT1 | S0_INPUT2 | S0_INPUT3 );
 			if (s0_state == s0_newState) {
