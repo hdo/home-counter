@@ -41,6 +41,7 @@ void ehz_process_serial_data(uint8_t data) {
 			// atoi conversion, ignoring non-digits
 			ehz_value = 0;
 			uint8_t digits = 0;
+			uint8_t decPosition = 0;
 			for (;i<serialbuffer_index;i++) {
 				d = serialbuffer[i];
 				if (d >= '0' && d <= '9') {
@@ -48,6 +49,9 @@ void ehz_process_serial_data(uint8_t data) {
 					d -= '0';
 					ehz_value *= 10;
 					ehz_value += d;
+				}
+				if (d == '.') {
+					decPosition = i;
 				}
 			}
 
@@ -60,13 +64,15 @@ void ehz_process_serial_data(uint8_t data) {
 			// 1*255(008433.1524)
 			// 1*255(008433.1531)
 			// 1*255(008433.1614)
-			if (digits == EHZ_EXPECTED_DIGITS) {
+			if (digits == EHZ_EXPECTED_DIGITS && decPosition == EHZ_EXPECTED_DECIMAL_POSITION) {
 				ehz_value_parsed = 1;
 			}
 			else {
 				// log error
 				logger_logString("ehz: parsing error digits: ");
 				logger_logNumberln(digits);
+				logger_logString("ehz: parsing error decimal position: ");
+				logger_logNumberln(decPosition);
 			}
 		}
 	}
