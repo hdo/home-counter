@@ -90,6 +90,20 @@ void uip_log(char *m)
 }
 
 
+/* wait */
+uint32_t wait_ticks(uint32_t last_value, uint32_t ticks) {
+	uint32_t ticks_now = clock_time();
+	if (ticks_now >= last_value) {
+		return (ticks_now - last_value) >= ticks;
+	}
+	else {
+		// check for timer overflow
+		return (UINT32_MAX - last_value + ticks_now) >= ticks;
+	}
+}
+
+
+
 /*--------------------------- main ---------------------------------*/
 
 char ipstring [20];
@@ -145,7 +159,7 @@ int main(void)
 
 	int currentms = clock_time() ;
 	UARTSendString(2, "wait 3s ...");
-	while(clock_time() - currentms < 300);
+	while(!(wait_ticks(currentms, 300)));
 	UARTSendStringln(2, " done");
 
 	// ethernet init
@@ -185,6 +199,24 @@ int main(void)
 	uint32_t s0_oldState = 0;
 	uint32_t s0_newState = 0;
 
+	/*
+	 * INIT DEFAULT VALUES
+	 */
+	SENSOR_DATA* sd1 = get_sensor_by_id(1);
+	if (sd1) {
+		logger_logString("updating s0[1] value: ");
+		sd1->value = 29527;
+		logger_logNumberln(sd1->value);
+	}
+
+	sd1 = get_sensor_by_id(2);
+	if (sd1) {
+		logger_logString("updating s0[2] value: ");
+		sd1->value = 351959;
+		logger_logNumberln(sd1->value);
+	}
+
+
 	while(1)
 	{
 
@@ -205,7 +237,7 @@ int main(void)
 		}
 
 		/* DEBOUNCING 2/2 */
-		if (s0_active && s0_msticks != clock_time()) {
+		if (s0_active && wait_ticks(s0_msticks, 20)) {
 			s0_state = ~LPC_GPIO2->FIOPIN & (S0_INPUT0 | S0_INPUT1 | S0_INPUT2 | S0_INPUT3 );
 			if (s0_state == s0_newState) {
 
