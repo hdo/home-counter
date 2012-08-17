@@ -136,9 +136,9 @@ int main(void)
 
 	// sensor init
 	init_sensors();
-	add_ehz(0);
-	add_s0(1);
-	add_s0(2);
+	add_ehz(0, "HAUPTSTROM");
+	add_s0(1, "WASSER");
+	add_s0(2, "GAS");
 
 
 	UARTInit(2, 9600);	/* baud rate setting */

@@ -16,11 +16,14 @@ typedef struct sensordata {
     uint32_t value;
     uint32_t value2;
     uint32_t errors;
+    char* name;
 } SENSOR_DATA;
 
 void init_sensors();
 
-void add_ehz(uint8_t addr);
+void add_ehz(uint8_t addr, char* name);
+void add_s0(uint8_t addr, char* name);
+
 SENSOR_DATA* get_sensor_by_id(uint8_t id);
 SENSOR_DATA* get_sensor(uint8_t type, uint8_t addr);
 char* get_sensor_type(uint8_t type);

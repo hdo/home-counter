@@ -20,17 +20,20 @@ void init_sensors() {
 		sensor_data[i].value = 0;
 		sensor_data[i].value2 = 0;
 		sensor_data[i].errors = 0;
+		sensor_data[i].name = "-";
 	}
 }
 
-void add_ehz(uint8_t addr) {
+void add_ehz(uint8_t addr, char* name) {
 	sensor_data[addr].enabled = 1;
 	sensor_data[addr].type = SENSOR_TYPE_EHZ;
+	sensor_data[addr].name = name;
 }
 
-void add_s0(uint8_t addr) {
+void add_s0(uint8_t addr, char* name) {
 	sensor_data[addr].enabled = 1;
 	sensor_data[addr].type = SENSOR_TYPE_S0;
+	sensor_data[addr].name = name;
 }
 
 SENSOR_DATA* get_sensor_by_id(uint8_t id) {
