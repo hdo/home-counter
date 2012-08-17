@@ -51,6 +51,7 @@
 #include "httpd-cgi.h"
 #include "httpd-fs.h"
 #include "sensors.h"
+#include "version.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -248,8 +249,8 @@ generate_json_output(void *arg)
 		  c = ',';
 	  }
 	  return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
-			  "%c{\"id\" : %d, \"enabled\" : %d, \"type\" : \"%s\", \"address\" : %d, \"value\" : %d, \"value2\" : %d}",
-			  c, sd->id,sd->enabled, get_sensor_type(sd->type), sd->address, sd->value,sd->value2);
+			  "%c{\"id\" : %d, \"name\" : \"%s\", \"enabled\" : %d, \"type\" : \"%s\", \"address\" : %d, \"value\" : %d, \"value2\" : %d}",
+			  c, sd->id, sd->name, sd->enabled, get_sensor_type(sd->type), sd->address, sd->value,sd->value2);
   }
 }
 
@@ -257,8 +258,8 @@ static unsigned short
 generate_json_header(void *arg)
 {
 	return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
-			"{\"restart_counter\" : %d, \"version_major\" : %d, \"version_minor\" : %d, \"sensors\" : [",
-			13, 1, 2);
+			"{\"restart_counter\" : %d, \"version_major\" : %d, \"version_minor\" : %d, \"build\" : \"%s\", \"sensors\" : [",
+			13, VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD_ID);
 }
 static unsigned short
 generate_json_footer(void *arg)
