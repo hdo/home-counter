@@ -228,7 +228,7 @@ int main(void)
 
 		/* process S0 input */
 		/* DEBOUNCING 1/2 */
-		if (!s0_active) {
+		if (s0_active == 0) {
 			s0_newState = ~LPC_GPIO2->FIOPIN & (S0_INPUT0 | S0_INPUT1 | S0_INPUT2 | S0_INPUT3 );
 			if (s0_oldState != s0_newState) {
 				s0_active = 1;
@@ -237,7 +237,8 @@ int main(void)
 		}
 
 		/* DEBOUNCING 2/2 */
-		if (s0_active && wait_ticks(s0_msticks, 20)) {
+		/* wait about 200ms */
+		if (s0_active == 1 && wait_ticks(s0_msticks, 20)) {
 			s0_state = ~LPC_GPIO2->FIOPIN & (S0_INPUT0 | S0_INPUT1 | S0_INPUT2 | S0_INPUT3 );
 			if (s0_state == s0_newState) {
 
@@ -262,6 +263,13 @@ int main(void)
 
 			}
 			s0_oldState = s0_state;
+			s0_active = 2;
+		}
+
+		/*
+		 * WAIT 1 second until  next trigger event
+		 */
+		if (s0_active == 2 && wait_ticks(s0_msticks, 100)) {
 			s0_active = 0;
 		}
 
