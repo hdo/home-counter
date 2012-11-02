@@ -102,6 +102,11 @@ uint32_t wait_ticks(uint32_t last_value, uint32_t ticks) {
 	}
 }
 
+void delay_10ms(uint8_t ticks) {
+	int currentms = clock_time() ;
+	// wait 1s
+	while(!(wait_ticks(currentms, ticks)));
+}
 
 
 /*--------------------------- main ---------------------------------*/
@@ -131,8 +136,12 @@ int main(void)
 	timer_set(&arp_timer, CLOCK_SECOND * 10);	/* 10s */
 
 	// led init
-	led2_init();
+	led_init();
 	led2_on();
+	led_all_on();
+	delay_10ms(100);
+	led_all_off();
+
 
 	// sensor init
 	init_sensors();
