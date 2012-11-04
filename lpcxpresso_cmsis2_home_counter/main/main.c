@@ -143,14 +143,18 @@ int main(void)
 	led_all_off();
 
 
+
 	// sensor init
+	led_on(0);
 	init_sensors();
 	add_ehz(0, "HAUPTSTROM");
 	add_s0(1, "WASSER");
 	add_s0(2, "GAS");
 
 
+	led_on(1);
 	UARTInit(2, 9600);	/* baud rate setting */
+
 	UARTSendCRLF(2);
 	UARTSendCRLF(2);
 	UARTSendStringln(2, "UART2 online ...");
@@ -166,21 +170,23 @@ int main(void)
 
 	logger_logStringln("log online ...");
 
-	int currentms = clock_time() ;
-	UARTSendString(2, "wait 3s ...");
-	while(!(wait_ticks(currentms, 300)));
+	UARTSendString(2, "wait 500ms ...");
+	delay_10ms(50);
 	UARTSendStringln(2, " done");
 
-	// ethernet init
+	led_on(2);
+	// ehz init
 	UARTSendString(2, "init ehz ...");
 	ehz_init();
 	UARTSendStringln(2, " done");
 
+	led_on(3);
 	// ethernet init
 	UARTSendString(2, "init ethernet ...");
 	tapdev_init();
 	UARTSendStringln(2, " done");
 
+	led_on(4);
 	UARTSendString(2, "init TCP/IP stack ...");
 	// Initialize the uIP TCP/IP stack.
 	uip_init();
@@ -193,13 +199,17 @@ int main(void)
 	uip_ipaddr(ipaddr, 255,255,255,0);
 	uip_setnetmask(ipaddr);	/* mask */
 
+	led_on(5);
 	UARTSendString(2, "init httpd ...");
 	// Initialize the HTTP server, listen to port 80.
 	httpd_init();
 	UARTSendStringln(2, " done");
 
+	delay_10ms(100);
+
 	UARTSendStringln(2, "entering main loop ...");
 	led2_off();
+	led_all_off();
 
 
 	uint32_t s0_msticks = 0;
