@@ -58,6 +58,7 @@
 #include "clock-arch.h"
 #include "logger.h"
 #include "version.h"
+#include "s0_input.h"
 
 #include <cr_section_macros.h>
 #include <NXP/crp.h>
@@ -73,12 +74,6 @@ int firstconnection = 0;
 
 
 #define BUF ((struct uip_eth_hdr *)&uip_buf[0])
-
-
-#define S0_INPUT0 (1 << 0)
-#define S0_INPUT1 (1 << 1)
-#define S0_INPUT2 (1 << 2)
-#define S0_INPUT3 (1 << 3)
 
 
 
@@ -245,51 +240,26 @@ int main(void)
 			UARTSendByte(2,data);
 		}
 
+
 		/* process S0 input */
-		/* DEBOUNCING 1/2 */
-		if (s0_active == 0) {
-			s0_newState = ~LPC_GPIO2->FIOPIN & (S0_INPUT0 | S0_INPUT1 | S0_INPUT2 | S0_INPUT3 );
-			if (s0_oldState != s0_newState) {
-				s0_active = 1;
-				s0_msticks = clock_time();
+		process_s0(clock_time());
+
+		if (s0_triggered(0)) {
+			SENSOR_DATA* sd = get_sensor_by_id(1);
+			if (sd) {
+				logger_logString("updating s0[1] value: ");
+				sd->value++;
+				logger_logNumberln(sd->value);
 			}
 		}
 
-		/* DEBOUNCING 2/2 */
-		/* wait about 200ms */
-		if (s0_active == 1 && wait_ticks(s0_msticks, 20)) {
-			s0_state = ~LPC_GPIO2->FIOPIN & (S0_INPUT0 | S0_INPUT1 | S0_INPUT2 | S0_INPUT3 );
-			if (s0_state == s0_newState) {
-
-				// falling edge
-				if ((s0_newState & S0_INPUT0) > 0) {
-					SENSOR_DATA* sd = get_sensor_by_id(1);
-					if (sd) {
-						logger_logString("updating s0[1] value: ");
-						sd->value++;
-						logger_logNumberln(sd->value);
-					}
-				}
-
-				if ((s0_newState & S0_INPUT1) > 0) {
-					SENSOR_DATA* sd = get_sensor_by_id(2);
-					if (sd) {
-						logger_logString("updating s0[2] value: ");
-						sd->value++;
-						logger_logNumberln(sd->value);
-					}
-				}
-
+		if (s0_triggered(1)) {
+			SENSOR_DATA* sd = get_sensor_by_id(2);
+			if (sd) {
+				logger_logString("updating s0[2] value: ");
+				sd->value++;
+				logger_logNumberln(sd->value);
 			}
-			s0_oldState = s0_state;
-			s0_active = 2;
-		}
-
-		/*
-		 * WAIT 1 second until  next trigger event
-		 */
-		if (s0_active == 2 && wait_ticks(s0_msticks, 100)) {
-			s0_active = 0;
 		}
 
 
