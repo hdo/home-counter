@@ -2,6 +2,8 @@
 #include "leds.h"
 
 uint8_t led_array[] = {LED0, LED1, LED2, LED3, LED4, LED5, LED6, LED7};
+uint32_t led_msticks[] = {0, 0, 0, 0, 0, 0, 0, 0};
+uint32_t led_timeout[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 // Function to initialise GPIO to access led
 void led_init (void)
@@ -26,6 +28,18 @@ void led_init (void)
 
 }
 
+uint32_t calc_diff(uint32_t value1, uint32_t value2) {
+	if (value1 == value2) {
+		return 0;
+	}
+	if (value1 > value2) {
+		return (value1 - value2);
+	}
+	else {
+		// check for timer overflow
+		return (UINT32_MAX - value2 + value1);
+	}
+}
 
 // Function to turn led on
 void led2_on (void)
@@ -106,10 +120,31 @@ void led_all_off (void)
 
 
 // Function to invert current state of led
-void led_all_invert (void)
-{
+void led_all_invert (void) {
 	uint8_t i;
 	for(i=0; i < sizeof(led_array); i++) {
 		led_invert(i);
 	}
 }
+
+void led_signal (uint8_t channel, uint32_t timeout, uint32_t msticks) {
+	if (channel < sizeof(led_array)) {
+		led_timeout[channel] = timeout;
+		led_msticks[channel] = msticks;
+		led_on(channel);
+	}
+}
+
+void process_leds(uint32_t msticks) {
+	uint8_t i;
+	for(i=0; i < sizeof(led_array); i++) {
+		if (led_timeout[i] > 0) {
+			if (calc_diff(msticks, led_msticks[i]) > led_timeout[i]) {
+				led_timeout[i] = 0;
+				led_msticks[i] = 0;
+				led_off(i);
+			}
+		}
+	}
+}
+
