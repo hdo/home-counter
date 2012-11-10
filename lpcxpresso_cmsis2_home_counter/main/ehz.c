@@ -58,6 +58,9 @@ void add_to_queue(uint32_t msticks, uint32_t value) {
 }
 
 uint32_t get_diff(uint32_t value1, uint32_t value2) {
+	if (value1 == value2) {
+		return 0;
+	}
 	if (value1 > value2) {
 		return (value1 - value2);
 	}
