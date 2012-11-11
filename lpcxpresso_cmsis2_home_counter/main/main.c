@@ -41,7 +41,7 @@
 #define MYIP_1	192
 #define MYIP_2	168
 #define MYIP_3	2
-#define MYIP_4	201
+#define MYIP_4	200
 
 
 #include "LPC17xx.h"
@@ -221,14 +221,14 @@ int main(void)
 	SENSOR_DATA* sd1 = get_sensor_by_id(1);
 	if (sd1) {
 		logger_logString("updating s0[1] value: ");
-		sd1->value = 29527;
+		sd1->value = 32860;
 		logger_logNumberln(sd1->value);
 	}
 
 	sd1 = get_sensor_by_id(2);
 	if (sd1) {
 		logger_logString("updating s0[2] value: ");
-		sd1->value = 351959;
+		sd1->value = 373000;
 		logger_logNumberln(sd1->value);
 	}
 
