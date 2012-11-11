@@ -9,6 +9,7 @@
 #include "uart.h"
 #include "ehz.h"
 #include "logger.h"
+#include "math_utils.h"
 #include "clock-arch.h"
 
 #define TICK_MS 10 // each tick equals 10 ms (see clock-arch.h)
@@ -57,19 +58,6 @@ void add_to_queue(uint32_t msticks, uint32_t value) {
 	queue_index %= QUEUE_SIZE;
 }
 
-uint32_t get_diff(uint32_t value1, uint32_t value2) {
-	if (value1 == value2) {
-		return 0;
-	}
-	if (value1 > value2) {
-		return (value1 - value2);
-	}
-	else {
-		// check for timer overflow
-		return (UINT32_MAX - value2 + value1);
-	}
-}
-
 int8_t get_index_for_calculation(uint32_t msticks) {
 	uint8_t i=0;
 	int8_t candidate_index = -1;
@@ -78,7 +66,7 @@ int8_t get_index_for_calculation(uint32_t msticks) {
 		if (queue_msticks[i] == 0) {
 			continue;
 		}
-		uint32_t d = get_diff(msticks, queue_msticks[i]);
+		uint32_t d = math_calc_diff(msticks, queue_msticks[i]);
 		// 20 seconds
 		if (d >= CANDIDATE_TRIGGER) {
 			// if there isn't any candidate yet
@@ -164,7 +152,7 @@ void ehz_process_serial_data(uint8_t data) {
 						add_to_queue(current_msTicks, ehz_value);
 					}
 					else {
-						uint32_t diff = get_diff(current_msTicks, last_ehz_msTicks);
+						uint32_t diff = math_calc_diff(current_msTicks, last_ehz_msTicks);
 						logger_logString("diff ticks: ");
 						logger_logNumberln(diff);
 
@@ -178,8 +166,8 @@ void ehz_process_serial_data(uint8_t data) {
 								logger_logNumberln(candidate_index);
 								uint32_t prev_msticks = queue_msticks[candidate_index];
 								uint32_t prev_value = queue_values[candidate_index];
-								uint32_t d_ticks = get_diff(current_msTicks, prev_msticks);
-								uint32_t d_value = get_diff(ehz_value, prev_value);
+								uint32_t d_ticks = math_calc_diff(current_msTicks, prev_msticks);
+								uint32_t d_value = math_calc_diff(ehz_value, prev_value);
 								logger_logString("candidate mstick diff: ");
 								logger_logNumberln(d_ticks);
 								logger_logString("candidate value diff: ");

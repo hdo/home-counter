@@ -41,7 +41,7 @@
 #define MYIP_1	192
 #define MYIP_2	168
 #define MYIP_3	2
-#define MYIP_4	200
+#define MYIP_4	201
 
 
 #include "LPC17xx.h"
@@ -142,50 +142,52 @@ int main(void)
 	// sensor init
 	led_on(0);
 	init_sensors();
-	add_ehz(0, "HAUPTSTROM");
-	add_s0(1, "WASSER");
-	add_s0(2, "GAS");
+	add_ehz(0, "STROM                  ");
+	add_s0(1,  "WASSER        [10L/Imp]");
+	add_s0(2,  "GAS       [0,01m^3/Imp]");
+	add_s0(3,  "WASSER GARTEN  [1L/Imp]");
 
 
 	led_on(1);
 	UARTInit(2, 9600);	/* baud rate setting */
+	UARTInit(0, 115200);
 
-	UARTSendCRLF(2);
-	UARTSendCRLF(2);
-	UARTSendStringln(2, "UART2 online ...");
+	UARTSendCRLF(0);
+	UARTSendCRLF(0);
+	UARTSendStringln(0, "UART2 online ...");
 
-	UARTSendString(2, PRODUCT_NAME);
-	UARTSendString(2, " v");
-	UARTSendNumber(2, VERSION_MAJOR);
-	UARTSendString(2, ".");
-	UARTSendNumber(2, VERSION_MINOR);
-	UARTSendString(2, " BUILD ID ");
-	UARTSendStringln(2, VERSION_BUILD_ID);
-	UARTSendCRLF(2);
+	UARTSendString(0, PRODUCT_NAME);
+	UARTSendString(0, " v");
+	UARTSendNumber(0, VERSION_MAJOR);
+	UARTSendString(0, ".");
+	UARTSendNumber(0, VERSION_MINOR);
+	UARTSendString(0, " BUILD ID ");
+	UARTSendStringln(0, VERSION_BUILD_ID);
+	UARTSendCRLF(0);
 
 	logger_logStringln("log online ...");
 
-	UARTSendString(2, "wait 500ms ...");
+	UARTSendString(0, "wait 500ms ...");
 	delay_10ms(50);
-	UARTSendStringln(2, " done");
+	UARTSendStringln(0, " done");
 
 	led_on(2);
 	// ehz init
-	UARTSendString(2, "init ehz ...");
+	UARTSendString(0, "init ehz ...");
 	ehz_init();
-	UARTSendStringln(2, " done");
+	UARTSendStringln(0, " done");
 
 	led_on(3);
 	// ethernet init
-	UARTSendString(2, "init ethernet ...");
+	UARTSendString(0, "init ethernet ...");
 	tapdev_init();
-	UARTSendStringln(2, " done");
+	UARTSendStringln(0, " done");
 
 	led_on(4);
-	UARTSendString(2, "init TCP/IP stack ...");
+	UARTSendString(0, "init TCP/IP stack ...");
 	// Initialize the uIP TCP/IP stack.
 	uip_init();
-	UARTSendStringln(2, " done");
+	UARTSendStringln(0, " done");
 
 	uip_ipaddr(ipaddr, MYIP_1,MYIP_2,MYIP_3,MYIP_4);
 	uip_sethostaddr(ipaddr);	/* host IP address */
@@ -195,14 +197,14 @@ int main(void)
 	uip_setnetmask(ipaddr);	/* mask */
 
 	led_on(5);
-	UARTSendString(2, "init httpd ...");
+	UARTSendString(0, "init httpd ...");
 	// Initialize the HTTP server, listen to port 80.
 	httpd_init();
-	UARTSendStringln(2, " done");
+	UARTSendStringln(0, " done");
 
 	delay_10ms(100);
 
-	UARTSendStringln(2, "entering main loop ...");
+	UARTSendStringln(0, "entering main loop ...");
 	led2_off();
 	led_all_off();
 
@@ -230,21 +232,32 @@ int main(void)
 		logger_logNumberln(sd1->value);
 	}
 
+	sd1 = get_sensor_by_id(3);
+	if (sd1) {
+		logger_logString("updating s0[3] value: ");
+		sd1->value = 0;
+		logger_logNumberln(sd1->value);
+	}
+
+	uint32_t msticks;
 
 	while(1)
 	{
 
 		/* process logger */
-		if (logger_dataAvailable() && UARTTXReady(2)) {
+		if (logger_dataAvailable() && UARTTXReady(0)) {
 			uint8_t data = logger_read();
-			UARTSendByte(2,data);
+			UARTSendByte(0,data);
 		}
 
+		msticks = clock_time();
 
 		/* process S0 input */
-		process_s0(clock_time());
+		process_s0(msticks);
+		process_leds(msticks);
 
 		if (s0_triggered(0)) {
+			led_signal(1, 50, clock_time());
 			SENSOR_DATA* sd = get_sensor_by_id(1);
 			if (sd) {
 				logger_logString("updating s0[1] value: ");
@@ -254,9 +267,20 @@ int main(void)
 		}
 
 		if (s0_triggered(1)) {
+			led_signal(2, 50, clock_time());
 			SENSOR_DATA* sd = get_sensor_by_id(2);
 			if (sd) {
 				logger_logString("updating s0[2] value: ");
+				sd->value++;
+				logger_logNumberln(sd->value);
+			}
+		}
+
+		if (s0_triggered(2)) {
+			led_signal(3, 50, clock_time());
+			SENSOR_DATA* sd = get_sensor_by_id(3);
+			if (sd) {
+				logger_logString("updating s0[3] value: ");
 				sd->value++;
 				logger_logNumberln(sd->value);
 			}
@@ -333,6 +357,7 @@ int main(void)
 			UART2Count = 0;
 
 			if (ehz_value_parsed() > 0) {
+				led_signal(0, 30, clock_time());
 				uint32_t ehz_value = ehz_get_value();
 				uint32_t estimated_value = ehz_get_estimated_value();
 				uint32_t parsing_errors = ehz_get_parsing_errors();

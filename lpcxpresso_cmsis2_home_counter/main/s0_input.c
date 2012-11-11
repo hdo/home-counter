@@ -1,5 +1,6 @@
 #include "LPC17xx.h"
 #include "s0_input.h"
+#include "math_utils.h"
 
 #define DEBOUNCE_CONSTANT 10
 
@@ -17,19 +18,6 @@ void s0_init(void) {
 	// no need to set FIODIR, since INPUT (0) is selected as default
 }
 
-uint32_t s0_calc_diff(uint32_t value1, uint32_t value2) {
-	if (value1 == value2) {
-		return 0;
-	}
-	if (value1 > value2) {
-		return (value1 - value2);
-	}
-	else {
-		// check for timer overflow
-		return (UINT32_MAX - value2 + value1);
-	}
-}
-
 uint32_t read_s0_status() {
 	// we're are using GPIO0 here !!!
 	// note that data is inverted (logic 0 -> 1) since we're are using pull-ups
@@ -45,7 +33,7 @@ void process_s0(uint32_t msticks) {
 	uint32_t d;
 	for(i = 0; i < s0_input_count; i++) {
 		if (s0_msticks[i] != 0) {
-			d = s0_calc_diff(msticks, s0_msticks[i]);
+			d = math_calc_diff(msticks, s0_msticks[i]);
 			if (d > DEBOUNCE_CONSTANT) {
 				s0_diff[i] = d;
 				s0_msticks[i] = 0;
