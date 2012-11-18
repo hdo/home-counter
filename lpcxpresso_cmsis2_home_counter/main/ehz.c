@@ -31,6 +31,7 @@ uint8_t serialbuffer[SERIAL_BUFFER_SIZE];
 uint8_t serialbuffer_index = 0;
 
 uint8_t value_parsed = 0;
+uint8_t parse_error = 0;
 uint32_t ehz_value = 0;
 uint32_t ehz_value2 = 0;
 
@@ -190,6 +191,7 @@ void ehz_process_serial_data(uint8_t data) {
 					// handle unexpected parsing error
 					// log error
 					// value is expected to be greater than previous value
+					parse_error = 1;
 					parsing_errors++;
 					logger_logString("ehz: error count: ");
 					logger_logNumberln(parsing_errors);
@@ -200,7 +202,11 @@ void ehz_process_serial_data(uint8_t data) {
 				}
 			}
 			else {
+				parse_error = 1;
 				// log error
+				parsing_errors++;
+				logger_logString("ehz: error count: ");
+				logger_logNumberln(parsing_errors);
 				logger_logString("ehz: parsing error digits: ");
 				logger_logNumberln(digits);
 				logger_logString("ehz: parsing error decimal position: ");
@@ -223,6 +229,16 @@ void ehz_process_serial_data(uint8_t data) {
 
 uint8_t ehz_value_parsed() {
 	return value_parsed;
+}
+
+uint8_t ehz_parse_error() {
+	if (parse_error) {
+		parse_error = 0;
+		return 1;
+	}
+	else {
+		return 0;
+	}
 }
 
 uint32_t ehz_get_value() {

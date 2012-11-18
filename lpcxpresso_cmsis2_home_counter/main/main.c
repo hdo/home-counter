@@ -138,13 +138,12 @@ int main(void)
 	led_all_off();
 
 
-
 	// sensor init
 	led_on(0);
 	init_sensors();
 	add_ehz(0, "STROM                  ");
 	add_s0(1,  "WASSER        [10L/Imp]");
-	add_s0(2,  "GAS       [0,01m^3/Imp]");
+	add_s0(2,  "GAS       [0.01m^3/Imp]");
 	add_s0(3,  "WASSER GARTEN  [1L/Imp]");
 
 
@@ -221,14 +220,14 @@ int main(void)
 	SENSOR_DATA* sd1 = get_sensor_by_id(1);
 	if (sd1) {
 		logger_logString("updating s0[1] value: ");
-		sd1->value = 32860;
+		sd1->value = 32998;
 		logger_logNumberln(sd1->value);
 	}
 
 	sd1 = get_sensor_by_id(2);
 	if (sd1) {
 		logger_logString("updating s0[2] value: ");
-		sd1->value = 373000;
+		sd1->value = 375595;
 		logger_logNumberln(sd1->value);
 	}
 
@@ -355,6 +354,7 @@ int main(void)
 				ehz_process_serial_data(UART2Buffer[i]);
 			}
 			UART2Count = 0;
+			LPC_UART2->IER = IER_THRE | IER_RLS | IER_RBR;		/* Re-enable RBR */
 
 			if (ehz_value_parsed() > 0) {
 				led_signal(0, 30, clock_time());
@@ -371,7 +371,10 @@ int main(void)
 				}
 			}
 
-			LPC_UART2->IER = IER_THRE | IER_RLS | IER_RBR;		/* Re-enable RBR */
+			if (ehz_parse_error()) {
+				led_signal(5, 30, clock_time());
+			}
+
 		}
 		else {
 			led2_off();
