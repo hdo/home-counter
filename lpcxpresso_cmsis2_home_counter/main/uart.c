@@ -433,9 +433,11 @@ uint32_t UARTInit( uint8_t PortNum, uint32_t baudrate )
   {
  	  LPC_PINCON->PINSEL0 &= ~0x00F00000;
 
- 	  /* disable pull up */
+ 	  // pull up
  	  LPC_PINCON->PINMODE0 &= ~(0b11<<22);
-  	  LPC_PINCON->PINMODE0 |= 0b10<<22;
+
+ 	  /* disable pull up */
+  	  //LPC_PINCON->PINMODE0 |= 0b10<<22;
 
 
  	  //LPC_PINCON->PINSEL0 |=  0x0000000A;  /* RxD3 is P0.1 and TxD3 is P0.0 */
