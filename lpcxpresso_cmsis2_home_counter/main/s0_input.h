@@ -3,6 +3,8 @@
 
 // USING P0.23, P0.24, P0.25, P0.26; GPIO0!
 
+#define S0_INPUT_COUNT 4
+
 #define S0_INPUT0 (1 << 23)
 #define S0_INPUT1 (1 << 24)
 #define S0_INPUT2 (1 << 25)
