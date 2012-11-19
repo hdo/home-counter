@@ -59,6 +59,7 @@
 #include "logger.h"
 #include "version.h"
 #include "s0_input.h"
+#include "rtc.h"
 
 #include <cr_section_macros.h>
 #include <NXP/crp.h>
@@ -72,8 +73,10 @@ __CRP const unsigned int CRP_WORD = CRP_NO_CRP ;
 int firstconnection = 0;
 #endif
 
-
 #define BUF ((struct uip_eth_hdr *)&uip_buf[0])
+
+// RTC
+#define RTC_IDENTIFIER_NUMBER 47110815
 
 
 
@@ -111,9 +114,13 @@ char ipstring [20];
 extern volatile uint32_t UART2Count;
 extern volatile uint8_t UART2Buffer[BUFSIZE];
 
+// RTC
+extern volatile uint32_t rtc_alarm_secs, rtc_alarm_minutes, rtc_alarm_hours;
+volatile uint32_t uptime_secs = 0;
+
 int main(void)
 {
-	unsigned int i;
+	uint32_t i;
 	uip_ipaddr_t ipaddr;	/* local IP address */
 	struct timer periodic_timer, arp_timer;
 
@@ -126,9 +133,17 @@ int main(void)
 
 	// clock init
 	clock_init();
-		// two timers for tcp/ip
+
+	// two timers for tcp/ip
 	timer_set(&periodic_timer, CLOCK_SECOND / 2); /* 0.5s */
 	timer_set(&arp_timer, CLOCK_SECOND * 10);	/* 10s */
+
+    /* rtc init */
+	RTCInit();
+	LPC_RTC->CIIR = IMSEC;
+	RTCStart();
+	NVIC_EnableIRQ(RTC_IRQn);
+
 
 	// led init
 	led_init();
@@ -145,6 +160,7 @@ int main(void)
 	add_s0(1,  "WASSER        [10L/Imp]");
 	add_s0(2,  "GAS       [0.01m^3/Imp]");
 	add_s0(3,  "WASSER GARTEN  [1L/Imp]");
+	add_s0(4,  "TEST         [1Imp/Imp]");
 
 
 	led_on(1);
@@ -165,10 +181,6 @@ int main(void)
 	UARTSendCRLF(0);
 
 	logger_logStringln("log online ...");
-
-	UARTSendString(0, "wait 500ms ...");
-	delay_10ms(50);
-	UARTSendStringln(0, " done");
 
 	led_on(2);
 	// ehz init
@@ -203,42 +215,56 @@ int main(void)
 
 	delay_10ms(100);
 
-	UARTSendStringln(0, "entering main loop ...");
-	led2_off();
-	led_all_off();
-
 
 	uint32_t s0_msticks = 0;
 	uint8_t s0_active = 0;
 	uint32_t s0_state = 0;
 	uint32_t s0_oldState = 0;
 	uint32_t s0_newState = 0;
+	uint32_t init_values[] = {0, 0, 0, 0};
+	uint32_t msticks;
+
+
+	UARTSendString(0, "loading initial s0 values ...");
 
 	/*
 	 * INIT DEFAULT VALUES
 	 */
-	SENSOR_DATA* sd1 = get_sensor_by_id(1);
-	if (sd1) {
-		logger_logString("updating s0[1] value: ");
-		sd1->value = 32998;
-		logger_logNumberln(sd1->value);
+
+	// load initial values via eeprom
+	// TODO
+
+
+	// load initial values via backup register of rtc
+	// check whether RTC battery is present
+	if (LPC_RTC->GPREG4 == RTC_IDENTIFIER_NUMBER) {
+		// set init values via backup register
+		init_values[0] == LPC_RTC->GPREG0;
+		init_values[1] == LPC_RTC->GPREG1;
+		init_values[2] == LPC_RTC->GPREG2;
+		init_values[3] == LPC_RTC->GPREG3;
+	}
+	else {
+		// init backup register
+		LPC_RTC->GPREG4 = RTC_IDENTIFIER_NUMBER;
 	}
 
-	sd1 = get_sensor_by_id(2);
-	if (sd1) {
-		logger_logString("updating s0[2] value: ");
-		sd1->value = 375595;
-		logger_logNumberln(sd1->value);
+	SENSOR_DATA* sd_elem;
+	for(i=0; i < S0_INPUT_COUNT; i++) {
+		sd_elem = get_sensor_by_id(i+1);
+		if (sd_elem) {
+			logger_logString("set init value of s0 with id ");
+			logger_logNumber(i+1);
+			logger_logString(" : ");
+			sd_elem->value = init_values[i];
+			logger_logNumberln(sd_elem->value);
+		}
 	}
 
-	sd1 = get_sensor_by_id(3);
-	if (sd1) {
-		logger_logString("updating s0[3] value: ");
-		sd1->value = 0;
-		logger_logNumberln(sd1->value);
-	}
-
-	uint32_t msticks;
+	UARTSendStringln(0, " done");
+	UARTSendStringln(0, "entering main loop ...");
+	led2_off();
+	led_all_off();
 
 	while(1)
 	{
@@ -256,32 +282,50 @@ int main(void)
 		process_leds(msticks);
 
 		if (s0_triggered(0)) {
-			led_signal(1, 50, clock_time());
-			SENSOR_DATA* sd = get_sensor_by_id(1);
-			if (sd) {
+			led_signal(0, 50, clock_time());
+			sd_elem = get_sensor_by_id(1);
+			if (sd_elem) {
 				logger_logString("updating s0[1] value: ");
-				sd->value++;
-				logger_logNumberln(sd->value);
+				sd_elem->value++;
+				logger_logNumberln(sd_elem->value);
+				// update backup register
+				LPC_RTC->GPREG0 = sd_elem->value;
 			}
 		}
 
 		if (s0_triggered(1)) {
-			led_signal(2, 50, clock_time());
-			SENSOR_DATA* sd = get_sensor_by_id(2);
-			if (sd) {
+			led_signal(1, 50, clock_time());
+			sd_elem = get_sensor_by_id(2);
+			if (sd_elem) {
 				logger_logString("updating s0[2] value: ");
-				sd->value++;
-				logger_logNumberln(sd->value);
+				sd_elem->value++;
+				logger_logNumberln(sd_elem->value);
+				// update backup register
+				LPC_RTC->GPREG1 = sd_elem->value;
 			}
 		}
 
 		if (s0_triggered(2)) {
-			led_signal(3, 50, clock_time());
-			SENSOR_DATA* sd = get_sensor_by_id(3);
-			if (sd) {
+			led_signal(2, 50, clock_time());
+			sd_elem = get_sensor_by_id(3);
+			if (sd_elem) {
 				logger_logString("updating s0[3] value: ");
-				sd->value++;
-				logger_logNumberln(sd->value);
+				sd_elem->value++;
+				logger_logNumberln(sd_elem->value);
+				// update backup register
+				LPC_RTC->GPREG2 = sd_elem->value;
+			}
+		}
+
+		if (s0_triggered(3)) {
+			led_signal(3, 50, clock_time());
+			sd_elem = get_sensor_by_id(4);
+			if (sd_elem) {
+				logger_logString("updating s0[4] value: ");
+				sd_elem->value++;
+				logger_logNumberln(sd_elem->value);
+				// update backup register
+				LPC_RTC->GPREG3 = sd_elem->value;
 			}
 		}
 
@@ -357,7 +401,7 @@ int main(void)
 			LPC_UART2->IER = IER_THRE | IER_RLS | IER_RBR;		/* Re-enable RBR */
 
 			if (ehz_value_parsed() > 0) {
-				led_signal(0, 30, clock_time());
+				led_signal(4, 30, clock_time());
 				uint32_t ehz_value = ehz_get_value();
 				uint32_t estimated_value = ehz_get_estimated_value();
 				uint32_t parsing_errors = ehz_get_parsing_errors();
@@ -378,6 +422,19 @@ int main(void)
 		}
 		else {
 			led2_off();
+		}
+
+		if (rtc_alarm_secs != 0) {
+			rtc_alarm_secs = 0;
+			uptime_secs++;
+		}
+
+		if (rtc_alarm_minutes != 0) {
+			rtc_alarm_minutes = 0;
+		}
+
+		if (rtc_alarm_hours != 0) {
+			rtc_alarm_hours = 0;
 		}
 	}
 }
