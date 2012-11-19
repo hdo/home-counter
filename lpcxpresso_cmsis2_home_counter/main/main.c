@@ -60,6 +60,7 @@
 #include "version.h"
 #include "s0_input.h"
 #include "rtc.h"
+#include "eeprom_utils.h"
 
 #include <cr_section_macros.h>
 #include <NXP/crp.h>
@@ -76,7 +77,10 @@ int firstconnection = 0;
 #define BUF ((struct uip_eth_hdr *)&uip_buf[0])
 
 // RTC
-#define RTC_IDENTIFIER_NUMBER 47110815
+#define EEPROM_IDENTIFIER_OFFSET 0
+#define EEPROM_BOOT_COUNTER_OFFSET 4
+#define EEPROM_S0_VALUE_OFFSET 10
+#define PERSISTENCE_IDENTIFIER 47110815
 
 
 
@@ -107,6 +111,53 @@ void delay_10ms(uint8_t ticks) {
 }
 
 
+/* ----------------------- s0 persistence -------------------- */
+
+void set_s0_values(uint32_t values[]) {
+	uint8_t i;
+	SENSOR_DATA* sd_elem;
+	for(i=0; i < S0_INPUT_COUNT; i++) {
+		sd_elem = get_sensor_by_id(i+1);
+		if (sd_elem) {
+			logger_logString("set value of s0 with id ");
+			logger_logNumber(i+1);
+			logger_logString(" : ");
+			sd_elem->value = values[i];
+			logger_logNumberln(sd_elem->value);
+		}
+	}
+}
+
+void save_s0_values(void) {
+	logger_logString("saving s0 values to eeprom ...");
+	uint8_t i;
+	SENSOR_DATA* sd_elem;
+	for(i=0; i < S0_INPUT_COUNT; i++) {
+		// s0 sensors start at 1
+		sd_elem = get_sensor_by_id(i+1);
+		if (sd_elem) {
+			// OFFSET OF EEPROM BEGINS AT 10
+			uint16_t addr = (i+EEPROM_S0_VALUE_OFFSET)*4;
+			eeprom_check_update_uint32(addr, sd_elem->value);
+		}
+	}
+	logger_logStringln(" done");
+}
+
+
+void restore_s0_values(void) {
+	uint8_t i;
+	uint32_t values[] = {0, 0, 0, 0};
+	logger_logString("restoring s0 values from eeprom ...");
+	for(i=0; i < S0_INPUT_COUNT; i++) {
+		uint16_t addr = (i+EEPROM_S0_VALUE_OFFSET)*4;
+		values[i] = eeprom_get_uint32(addr);
+	}
+	set_s0_values(values);
+	logger_logStringln(" done");
+}
+
+
 /*--------------------------- main ---------------------------------*/
 
 char ipstring [20];
@@ -117,6 +168,7 @@ extern volatile uint8_t UART2Buffer[BUFSIZE];
 // RTC
 extern volatile uint32_t rtc_alarm_secs, rtc_alarm_minutes, rtc_alarm_hours;
 volatile uint32_t uptime_secs = 0;
+uint32_t boot_up_counter = 0;
 
 int main(void)
 {
@@ -143,6 +195,12 @@ int main(void)
 	LPC_RTC->CIIR = IMSEC;
 	RTCStart();
 	NVIC_EnableIRQ(RTC_IRQn);
+
+
+	// process boot up counter
+	boot_up_counter = eeprom_get_uint32(EEPROM_BOOT_COUNTER_OFFSET);
+	boot_up_counter++;
+	eeprom_set_uint32(EEPROM_BOOT_COUNTER_OFFSET, boot_up_counter);
 
 
 	// led init
@@ -179,6 +237,11 @@ int main(void)
 	UARTSendString(0, " BUILD ID ");
 	UARTSendStringln(0, VERSION_BUILD_ID);
 	UARTSendCRLF(0);
+
+
+	UARTSendString(0, "boot up counter: ");
+	UARTSendNumberln(0, boot_up_counter);
+
 
 	logger_logStringln("log online ...");
 
@@ -221,9 +284,8 @@ int main(void)
 	uint32_t s0_state = 0;
 	uint32_t s0_oldState = 0;
 	uint32_t s0_newState = 0;
-	uint32_t init_values[] = {0, 0, 0, 0};
 	uint32_t msticks;
-
+	SENSOR_DATA* sd_elem;
 
 	UARTSendString(0, "loading initial s0 values ...");
 
@@ -232,33 +294,29 @@ int main(void)
 	 */
 
 	// load initial values via eeprom
-	// TODO
 
+	if (eeprom_get_uint32(EEPROM_IDENTIFIER_OFFSET) == PERSISTENCE_IDENTIFIER) {
+		restore_s0_values();
+	}
 
 	// load initial values via backup register of rtc
 	// check whether RTC battery is present
-	if (LPC_RTC->GPREG4 == RTC_IDENTIFIER_NUMBER) {
+	if (LPC_RTC->GPREG4 == PERSISTENCE_IDENTIFIER) {
 		// set init values via backup register
+		uint32_t init_values[] = {0, 0, 0, 0};
 		init_values[0] == LPC_RTC->GPREG0;
 		init_values[1] == LPC_RTC->GPREG1;
 		init_values[2] == LPC_RTC->GPREG2;
 		init_values[3] == LPC_RTC->GPREG3;
+		set_s0_values(init_values);
 	}
 	else {
 		// init backup register
-		LPC_RTC->GPREG4 = RTC_IDENTIFIER_NUMBER;
-	}
-
-	SENSOR_DATA* sd_elem;
-	for(i=0; i < S0_INPUT_COUNT; i++) {
-		sd_elem = get_sensor_by_id(i+1);
-		if (sd_elem) {
-			logger_logString("set init value of s0 with id ");
-			logger_logNumber(i+1);
-			logger_logString(" : ");
-			sd_elem->value = init_values[i];
-			logger_logNumberln(sd_elem->value);
-		}
+		LPC_RTC->GPREG4 = PERSISTENCE_IDENTIFIER;
+		LPC_RTC->GPREG0 = 0;
+		LPC_RTC->GPREG1 = 0;
+		LPC_RTC->GPREG2 = 0;
+		LPC_RTC->GPREG3 = 0;
 	}
 
 	UARTSendStringln(0, " done");
@@ -435,6 +493,7 @@ int main(void)
 
 		if (rtc_alarm_hours != 0) {
 			rtc_alarm_hours = 0;
+
 		}
 	}
 }
