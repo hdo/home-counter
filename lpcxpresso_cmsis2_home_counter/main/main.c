@@ -43,6 +43,21 @@
 #define MYIP_3	2
 #define MYIP_4	200
 
+// ************************************
+// Define initial values for S0 counter
+// ************************************
+
+// WASSER
+#define INITIAL_VALUE_SO_0 33280
+// GAS
+#define INITIAL_VALUE_SO_1 379762
+// WASSER GARTEN
+#define INITIAL_VALUE_SO_2 27
+// TEST
+#define INITIAL_VALUE_SO_3 0
+
+
+
 
 #include "LPC17xx.h"
 
@@ -119,17 +134,16 @@ void set_s0_values(uint32_t values[]) {
 	for(i=0; i < S0_INPUT_COUNT; i++) {
 		sd_elem = get_sensor_by_id(i+1);
 		if (sd_elem) {
-			logger_logString("set value of s0 with id ");
-			logger_logNumber(i+1);
-			logger_logString(" : ");
+			UARTSendString(0, "set value of s0 with id ");
+			UARTSendNumber(0, i+1);
+			UARTSendString(0, " : ");
 			sd_elem->value = values[i];
-			logger_logNumberln(sd_elem->value);
+			UARTSendNumberln(0, sd_elem->value);
 		}
 	}
 }
 
 void save_s0_values(void) {
-	logger_logString("saving s0 values to eeprom ...");
 	uint8_t i;
 	SENSOR_DATA* sd_elem;
 	for(i=0; i < S0_INPUT_COUNT; i++) {
@@ -141,20 +155,19 @@ void save_s0_values(void) {
 			eeprom_check_update_uint32(addr, sd_elem->value);
 		}
 	}
-	logger_logStringln(" done");
 }
 
 
 void restore_s0_values(void) {
 	uint8_t i;
 	uint32_t values[] = {0, 0, 0, 0};
-	logger_logString("restoring s0 values from eeprom ...");
+	UARTSendStringln(0, "restoring s0 values from eeprom ...");
 	for(i=0; i < S0_INPUT_COUNT; i++) {
 		uint16_t addr = (i+EEPROM_S0_VALUE_OFFSET)*4;
 		values[i] = eeprom_get_uint32(addr);
 	}
 	set_s0_values(values);
-	logger_logStringln(" done");
+	UARTSendStringln(0, " done");
 }
 
 
@@ -165,10 +178,11 @@ char ipstring [20];
 extern volatile uint32_t UART2Count;
 extern volatile uint8_t UART2Buffer[BUFSIZE];
 
+extern uint32_t boot_up_counter;
+
 // RTC
 extern volatile uint32_t rtc_alarm_secs, rtc_alarm_minutes, rtc_alarm_hours;
 volatile uint32_t uptime_secs = 0;
-uint32_t boot_up_counter = 0;
 
 int main(void)
 {
@@ -197,28 +211,24 @@ int main(void)
 	NVIC_EnableIRQ(RTC_IRQn);
 
 
-	// process boot up counter
-	boot_up_counter = eeprom_get_uint32(EEPROM_BOOT_COUNTER_OFFSET);
-	boot_up_counter++;
-	eeprom_set_uint32(EEPROM_BOOT_COUNTER_OFFSET, boot_up_counter);
 
 
 	// led init
 	led_init();
 	led2_on();
 	led_all_on();
-	delay_10ms(100);
+	delay_10ms(50);
 	led_all_off();
 
 
 	// sensor init
 	led_on(0);
 	init_sensors();
-	add_ehz(0, "STROM                  ");
-	add_s0(1,  "WASSER        [10L/Imp]");
-	add_s0(2,  "GAS       [0.01m^3/Imp]");
-	add_s0(3,  "WASSER GARTEN  [1L/Imp]");
-	add_s0(4,  "TEST         [1Imp/Imp]");
+	add_ehz(0, "STROM");
+	add_s0(1,  "WASSER");
+	add_s0(2,  "GAS");
+	add_s0(3,  "WASSER GARTEN");
+	add_s0(4,  "TEST");
 
 
 	led_on(1);
@@ -238,9 +248,67 @@ int main(void)
 	UARTSendStringln(0, VERSION_BUILD_ID);
 	UARTSendCRLF(0);
 
+	/*
+	 *
+	 * TODO: when to load values from eeprom
+	 */
 
-	UARTSendString(0, "boot up counter: ");
-	UARTSendNumberln(0, boot_up_counter);
+	UARTSendString(0, "identifier: ");
+	UARTSendNumberln(0, eeprom_get_uint32(EEPROM_IDENTIFIER_OFFSET));
+
+	if (eeprom_get_uint32(EEPROM_IDENTIFIER_OFFSET) == PERSISTENCE_IDENTIFIER) {
+		UARTSendStringln(0, "updating boot up counter ... ");
+		// process boot up counter
+		boot_up_counter = eeprom_get_uint32(EEPROM_BOOT_COUNTER_OFFSET);
+		boot_up_counter++;
+		eeprom_set_uint32(EEPROM_BOOT_COUNTER_OFFSET, boot_up_counter);
+
+		UARTSendString(0, "boot up counter: ");
+		UARTSendNumberln(0, boot_up_counter);
+
+		UARTSendStringln(0, "loading initial values from eeprom ... ");
+		restore_s0_values();
+	}
+	else {
+		UARTSendStringln(0, "WARNING: eeprom is not initalized! ");
+		UARTSendString(0, "initializing eeprom ... ");
+		eeprom_set_uint32(EEPROM_IDENTIFIER_OFFSET, PERSISTENCE_IDENTIFIER);
+		eeprom_set_uint32(EEPROM_BOOT_COUNTER_OFFSET, 1);
+		UARTSendStringln(0, "done");
+	}
+
+
+	// load initial values via backup register of rtc
+	// check whether RTC battery is present
+	UARTSendStringln(0, "loading initial values from RTC ...");
+	UARTSendString(0, "RTC identifier value: ");
+	UARTSendNumberln(0, LPC_RTC->GPREG4);
+
+	if (LPC_RTC->GPREG4 == PERSISTENCE_IDENTIFIER) {
+		UARTSendStringln(0, "found values in RTC registers ...");
+		// values are already in RTC registers
+	}
+	else {
+		UARTSendStringln(0, "WARNING: RTC registers are not initialized!");
+		UARTSendStringln(0, "initializing RTC registers ...");
+		// init backup register
+		LPC_RTC->GPREG4 = PERSISTENCE_IDENTIFIER;
+		LPC_RTC->GPREG0 = INITIAL_VALUE_SO_0;
+		LPC_RTC->GPREG1 = INITIAL_VALUE_SO_1;
+		LPC_RTC->GPREG2 = INITIAL_VALUE_SO_2;
+		LPC_RTC->GPREG3 = INITIAL_VALUE_SO_3;
+	}
+
+	uint32_t init_values[] = {0, 0, 0, 0};
+	init_values[0] = LPC_RTC->GPREG0;
+	init_values[1] = LPC_RTC->GPREG1;
+	init_values[2] = LPC_RTC->GPREG2;
+	init_values[3] = LPC_RTC->GPREG3;
+	set_s0_values(init_values);
+
+	UARTSendString(0, "saving values to eeprom ... ");
+	save_s0_values();
+	UARTSendStringln(0, " done");
 
 
 	logger_logStringln("log online ...");
@@ -289,35 +357,6 @@ int main(void)
 
 	UARTSendString(0, "loading initial s0 values ...");
 
-	/*
-	 * INIT DEFAULT VALUES
-	 */
-
-	// load initial values via eeprom
-
-	if (eeprom_get_uint32(EEPROM_IDENTIFIER_OFFSET) == PERSISTENCE_IDENTIFIER) {
-		restore_s0_values();
-	}
-
-	// load initial values via backup register of rtc
-	// check whether RTC battery is present
-	if (LPC_RTC->GPREG4 == PERSISTENCE_IDENTIFIER) {
-		// set init values via backup register
-		uint32_t init_values[] = {0, 0, 0, 0};
-		init_values[0] == LPC_RTC->GPREG0;
-		init_values[1] == LPC_RTC->GPREG1;
-		init_values[2] == LPC_RTC->GPREG2;
-		init_values[3] == LPC_RTC->GPREG3;
-		set_s0_values(init_values);
-	}
-	else {
-		// init backup register
-		LPC_RTC->GPREG4 = PERSISTENCE_IDENTIFIER;
-		LPC_RTC->GPREG0 = 0;
-		LPC_RTC->GPREG1 = 0;
-		LPC_RTC->GPREG2 = 0;
-		LPC_RTC->GPREG3 = 0;
-	}
 
 	UARTSendStringln(0, " done");
 	UARTSendStringln(0, "entering main loop ...");
@@ -493,7 +532,9 @@ int main(void)
 
 		if (rtc_alarm_hours != 0) {
 			rtc_alarm_hours = 0;
-
+			logger_logString("saving values to eeprom ...");
+			save_s0_values();
+			logger_logStringln(" done");
 		}
 	}
 }

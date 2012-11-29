@@ -56,6 +56,8 @@
 #include <stdio.h>
 #include <string.h>
 
+extern uint32_t boot_up_counter;
+
 HTTPD_CGI_CALL(file, "file-stats", file_stats);
 HTTPD_CGI_CALL(tcp, "tcp-connections", tcp_stats);
 HTTPD_CGI_CALL(net, "net-stats", net_stats);
@@ -259,7 +261,7 @@ generate_json_header(void *arg)
 {
 	return snprintf((char *)uip_appdata, UIP_APPDATA_SIZE,
 			"{\"restart_counter\" : %d, \"version_major\" : %d, \"version_minor\" : %d, \"build\" : \"%s\", \"sensors\" : [",
-			13, VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD_ID);
+			boot_up_counter, VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD_ID);
 }
 static unsigned short
 generate_json_footer(void *arg)
