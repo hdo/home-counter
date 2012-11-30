@@ -1,18 +1,15 @@
 #include "LPC17xx.h"
 #include "logger.h"
+#include "queue.h"
 #include <stdlib.h>
 
-uint8_t rbuffer[LOGGER_BUFFER_SIZE];
-uint8_t rbuffer_head=0;
-uint8_t rbuffer_tail=0;
-uint8_t rbuffer_count=0;
-
+uint8_t logger_enabled = 0;
 
 /**
  * expected zero terminated string
  */
 void logger_logString(char* data) {
-	while(!logger_isFull() && *data) {
+	while(!queue_isFull() && *data) {
 		logger_logByte(*data++);
 	}
 }
@@ -38,39 +35,11 @@ void logger_logCRLF() {
 }
 
 void logger_logByte(uint8_t data) {
-	if (!logger_isFull()) {
-		rbuffer[rbuffer_tail++] = data;
-		rbuffer_count++;
-		if (rbuffer_tail >= LOGGER_BUFFER_SIZE) {
-			rbuffer_tail %= LOGGER_BUFFER_SIZE;
-		}
+	if (logger_enabled) {
+		queue_put(data);
 	}
 }
 
-uint8_t logger_read() {
-	if (rbuffer_count > 0) {
-		uint8_t data = rbuffer[rbuffer_head++];
-		rbuffer_count--;
-		if (rbuffer_head >= LOGGER_BUFFER_SIZE) {
-			rbuffer_head %= LOGGER_BUFFER_SIZE;
-		}
-		return data;
-	}
-	return 0;
-}
-
-uint8_t logger_isEmpty() {
-	return rbuffer_count == 0;
-}
-
-uint8_t logger_isFull() {
-	return rbuffer_count == LOGGER_BUFFER_SIZE;
-}
-
-uint8_t logger_dataAvailable() {
-	return rbuffer_count > 0;
-}
-
-uint8_t logger_count() {
-	return rbuffer_count;
+void logger_setEnabled(uint8_t enabled) {
+	logger_enabled = enabled;
 }

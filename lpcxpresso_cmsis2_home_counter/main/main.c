@@ -71,6 +71,7 @@
 #include "ehz.h"
 #include "leds.h"
 #include "clock-arch.h"
+#include "queue.h"
 #include "logger.h"
 #include "version.h"
 #include "s0_input.h"
@@ -310,7 +311,7 @@ int main(void)
 	save_s0_values();
 	UARTSendStringln(0, " done");
 
-
+	logger_setEnabled(1);
 	logger_logStringln("log online ...");
 
 	led_on(2);
@@ -367,8 +368,8 @@ int main(void)
 	{
 
 		/* process logger */
-		if (logger_dataAvailable() && UARTTXReady(0)) {
-			uint8_t data = logger_read();
+		if (queue_dataAvailable() && UARTTXReady(0)) {
+			uint8_t data = queue_read();
 			UARTSendByte(0,data);
 		}
 
