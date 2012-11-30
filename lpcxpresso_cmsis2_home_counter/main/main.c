@@ -98,6 +98,9 @@ int firstconnection = 0;
 #define EEPROM_S0_VALUE_OFFSET 10
 #define PERSISTENCE_IDENTIFIER 47110815
 
+#define CONSOLE_MODE_LOGGER 0
+#define CONSOLE_MODE_USER 1
+#define CONSOLE_MODE_PROCESS_DATA 2
 
 
 /*--------------------------- uip_log ---------------------------------*/
@@ -176,8 +179,8 @@ void restore_s0_values(void) {
 
 char ipstring [20];
 
-extern volatile uint32_t UART2Count;
-extern volatile uint8_t UART2Buffer[BUFSIZE];
+extern volatile uint32_t UART2Count, UART0Count;
+extern volatile uint8_t UART2Buffer[BUFSIZE], UART0Buffer[BUFSIZE];
 
 extern uint32_t boot_up_counter;
 
@@ -355,6 +358,7 @@ int main(void)
 	uint32_t s0_newState = 0;
 	uint32_t msticks;
 	SENSOR_DATA* sd_elem;
+	uint8_t console_mode = CONSOLE_MODE_LOGGER; /* 0->logger, 1->user */
 
 	UARTSendString(0, "loading initial s0 values ...");
 
@@ -368,8 +372,8 @@ int main(void)
 	{
 
 		/* process logger */
-		if (queue_dataAvailable() && UARTTXReady(0)) {
-			uint8_t data = queue_read();
+		if (console_out_dataAvailable() && UARTTXReady(0)) {
+			uint8_t data = console_out_read();
 			UARTSendByte(0,data);
 		}
 
@@ -520,6 +524,51 @@ int main(void)
 		}
 		else {
 			led2_off();
+		}
+
+		/**
+		 * process user input via console
+		 */
+		if ( UART0Count != 0 ) {
+			uint8_t data;
+			LPC_UART0->IER = IER_THRE | IER_RLS;				/* Disable RBR */
+			if (console_mode == CONSOLE_MODE_LOGGER) {
+				data = UART0Buffer[i];
+				if (data == 13) {
+					console_mode = CONSOLE_MODE_USER;
+					logger_setEnabled(0);
+					console_setEnabled(1);
+					console_out_reset();
+					// force carriage return
+					console_printByte(data);
+					// skip carriage return for input
+					int i = 1;
+					for(; i < UART0Count; i++) {
+						data = UART0Buffer[i];
+						console_in_put(data);
+						console_printByte(data);
+					}
+				}
+			}
+			if (console_mode == CONSOLE_MODE_USER) {
+				// USER MODE
+				int i = 0;
+				for(; i < UART0Count; i++) {
+					data = UART0Buffer[i];
+					console_in_put(data);
+					console_printByte(data);
+					if (data == 13) {
+						if (console_in_dataAvailable() < 3) {
+							console_in_reset();
+						}
+						else {
+							console_mode == CONSOLE_MODE_PROCESS_DATA;
+						}
+					}
+				}
+			}
+			UART0Count = 0;
+			LPC_UART0->IER = IER_THRE | IER_RLS | IER_RBR; /* Re-enable RBR */
 		}
 
 		if (rtc_alarm_secs != 0) {

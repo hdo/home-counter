@@ -1,6 +1,6 @@
 #include "LPC17xx.h"
 #include "logger.h"
-#include "queue.h"
+#include "console_out.h"
 #include <stdlib.h>
 
 uint8_t logger_enabled = 0;
@@ -9,7 +9,7 @@ uint8_t logger_enabled = 0;
  * expected zero terminated string
  */
 void logger_logString(char* data) {
-	while(!queue_isFull() && *data) {
+	while(!console_out_isFull() && *data) {
 		logger_logByte(*data++);
 	}
 }
@@ -36,7 +36,7 @@ void logger_logCRLF() {
 
 void logger_logByte(uint8_t data) {
 	if (logger_enabled) {
-		queue_put(data);
+		console_out_put(data);
 	}
 }
 
