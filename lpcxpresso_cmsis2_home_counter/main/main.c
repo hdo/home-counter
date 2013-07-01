@@ -221,7 +221,7 @@ int main(void)
 	uint32_t s0_state = 0;
 	uint32_t s0_oldState = 0;
 	uint32_t s0_newState = 0;
-	uint32_t init_values[] = {0, 0, 0, 0};
+	uint32_t init_values[] = {41532, 491029, 4453, 0};
 	uint32_t msticks;
 
 
@@ -238,13 +238,20 @@ int main(void)
 	// load initial values via backup register of rtc
 	// check whether RTC battery is present
 	if (LPC_RTC->GPREG4 == RTC_IDENTIFIER_NUMBER) {
+		UARTSendString(0, "loading values from RTC ...");
 		// set init values via backup register
-		init_values[0] == LPC_RTC->GPREG0;
-		init_values[1] == LPC_RTC->GPREG1;
-		init_values[2] == LPC_RTC->GPREG2;
-		init_values[3] == LPC_RTC->GPREG3;
+		logger_logNumberln(LPC_RTC->GPREG0);
+		logger_logNumberln(LPC_RTC->GPREG1);
+		logger_logNumberln(LPC_RTC->GPREG2);
+		logger_logNumberln(LPC_RTC->GPREG3);
+
+		init_values[0] = LPC_RTC->GPREG0;
+		init_values[1] = LPC_RTC->GPREG1;
+		init_values[2] = LPC_RTC->GPREG2;
+		init_values[3] = LPC_RTC->GPREG3;
 	}
 	else {
+		UARTSendString(0, "initializing RTC ...");
 		// init backup register
 		LPC_RTC->GPREG4 = RTC_IDENTIFIER_NUMBER;
 	}
