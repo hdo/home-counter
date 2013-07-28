@@ -160,7 +160,7 @@ int main(void)
 	add_s0(1,  "WASSER        [10L/Imp]");
 	add_s0(2,  "GAS       [0.01m^3/Imp]");
 	add_s0(3,  "WASSER GARTEN  [1L/Imp]");
-	add_s0(4,  "TEST         [1Imp/Imp]");
+	add_s0(4,  "HEIZUNG      [1Imp/Imp]");
 
 
 	led_on(1);
@@ -221,7 +221,7 @@ int main(void)
 	uint32_t s0_state = 0;
 	uint32_t s0_oldState = 0;
 	uint32_t s0_newState = 0;
-	uint32_t init_values[] = {41532, 491029, 4453, 0};
+	uint32_t init_values[] = {42911, 497447, 8396, 0}; // WASSER, GAS, WASSER GARTEN, HEIZUNG
 	uint32_t msticks;
 
 
@@ -289,7 +289,7 @@ int main(void)
 		process_leds(msticks);
 
 		if (s0_triggered(0)) {
-			led_signal(0, 50, clock_time());
+			led_signal(0, 50, msticks);
 			sd_elem = get_sensor_by_id(1);
 			if (sd_elem) {
 				logger_logString("updating s0[1] value: ");
@@ -301,7 +301,7 @@ int main(void)
 		}
 
 		if (s0_triggered(1)) {
-			led_signal(1, 50, clock_time());
+			led_signal(1, 50, msticks);
 			sd_elem = get_sensor_by_id(2);
 			if (sd_elem) {
 				logger_logString("updating s0[2] value: ");
@@ -313,7 +313,7 @@ int main(void)
 		}
 
 		if (s0_triggered(2)) {
-			led_signal(2, 50, clock_time());
+			led_signal(2, 50, msticks);
 			sd_elem = get_sensor_by_id(3);
 			if (sd_elem) {
 				logger_logString("updating s0[3] value: ");
@@ -325,7 +325,7 @@ int main(void)
 		}
 
 		if (s0_triggered(3)) {
-			led_signal(3, 50, clock_time());
+			led_signal(3, 50, msticks);
 			sd_elem = get_sensor_by_id(4);
 			if (sd_elem) {
 				logger_logString("updating s0[4] value: ");
@@ -408,7 +408,7 @@ int main(void)
 			LPC_UART2->IER = IER_THRE | IER_RLS | IER_RBR;		/* Re-enable RBR */
 
 			if (ehz_value_parsed() > 0) {
-				led_signal(4, 30, clock_time());
+				led_signal(4, 30, msticks);
 				uint32_t ehz_value = ehz_get_value();
 				uint32_t estimated_value = ehz_get_estimated_value();
 				uint32_t parsing_errors = ehz_get_parsing_errors();
@@ -423,7 +423,7 @@ int main(void)
 			}
 
 			if (ehz_parse_error()) {
-				led_signal(5, 30, clock_time());
+				led_signal(5, 30, msticks);
 			}
 
 		}
