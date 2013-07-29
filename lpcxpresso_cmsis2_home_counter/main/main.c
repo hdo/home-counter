@@ -161,6 +161,7 @@ int main(void)
 	add_s0(2,  "GAS       [0.01m^3/Imp]");
 	add_s0(3,  "WASSER GARTEN  [1L/Imp]");
 	add_s0(4,  "HEIZUNG      [1Imp/Imp]");
+	add_ehz(5, "STROM PV               ");
 
 
 	led_on(1);
@@ -406,29 +407,35 @@ int main(void)
 			}
 			UART2Count = 0;
 			LPC_UART2->IER = IER_THRE | IER_RLS | IER_RBR;		/* Re-enable RBR */
-
-			if (ehz_value_parsed() > 0) {
-				led_signal(4, 30, msticks);
-				uint32_t ehz_value = ehz_get_value();
-				uint32_t estimated_value = ehz_get_estimated_value();
-				uint32_t parsing_errors = ehz_get_parsing_errors();
-
-				SENSOR_DATA* sd = get_sensor_by_id(0);
-				if (sd) {
-					logger_logStringln("updating ehz[0] values ...");
-					sd->value = ehz_value;
-					sd->value2 = estimated_value;
-					sd->errors = parsing_errors;
-				}
-			}
-
-			if (ehz_parse_error()) {
-				led_signal(5, 30, msticks);
-			}
-
 		}
-		else {
+
+		ehz_process(msticks);
+
+		if (ehz_data_available()) {
 			led2_off();
+			led_signal(4, 30, msticks);
+
+			SENSOR_DATA* sd = get_sensor_by_id(0);
+			if (sd) {
+				logger_logStringln("updating ehz[0] values ...");
+				sd->value = ehz_get_energy_consumed();
+				sd->value2 = ehz_get_power_current_consume();
+				sd->errors += ehz_error_available();
+			}
+
+			sd = get_sensor_by_id(5);
+			if (sd) {
+				logger_logStringln("updating ehz[5] values ...");
+				sd->value = ehz_get_energy_produced();
+				sd->value2 = ehz_get_power_current_produce();
+				sd->errors += ehz_error_available();
+			}
+		}
+
+		if (ehz_error_available()) {
+			led2_off();
+			ehz_reset();
+			led_signal(5, 30, msticks);
 		}
 
 		if (rtc_alarm_secs != 0) {

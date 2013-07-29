@@ -1,255 +1,186 @@
 /*
  * ehz.c
  *
- *  Created on: Aug 2, 2012
+ *  Created on: 2013-07-29
  *      Author: huy
  */
 
 #include "LPC17xx.h"
-#include "uart.h"
 #include "ehz.h"
 #include "logger.h"
 #include "math_utils.h"
-#include "clock-arch.h"
 
-#define TICK_MS 10 // each tick equals 10 ms (see clock-arch.h)
-#define UPDATE_ESTIMATE_SECONDS 5 // update estimated value each x seconds (e.g. 5)
-#define UPDATE_ESTIMATE_CANDIDATE_DIFF 20 // last candidate should be from x seconds in the past (e.g. 20)
-#define TICKS_PER_OUR 1000 * 3600 / TICK_MS
-
-// there is no need to change the following formula
-#define UPDATE_TRIGGER UPDATE_ESTIMATE_SECONDS * 1000 / TICK_MS
-#define CANDIDATE_TRIGGER UPDATE_ESTIMATE_CANDIDATE_DIFF * 1000 / TICK_MS
-
-
-#define QUEUE_SIZE 6
 
 /* we're looking for pattern  "1*255(" */
-const uint8_t search_pattern[SEARCH_PATTERN_LENGTH] = {0x31,0x2A,0x32,0x35,0x35,0x28};
-uint8_t search_match = 0;
-uint8_t serialbuffer[SERIAL_BUFFER_SIZE];
-uint8_t serialbuffer_index = 0;
+uint8_t search_pattern_current_power[]   = { 0x77, 0x07, 0x01, 0x00, 0x10, 0x07, 0x00, 0xFF };
+uint8_t search_pattern_energy_produced[] = { 0x77, 0x07, 0x01, 0x00, 0x01, 0x08, 0x00, 0xFF };
+uint8_t search_pattern_energy_consumed[] = { 0x77, 0x07, 0x01, 0x00, 0x02, 0x08, 0x00, 0xFF };
 
-uint8_t value_parsed = 0;
-uint8_t parse_error = 0;
-uint32_t ehz_value = 0;
-uint32_t ehz_value2 = 0;
+uint32_t ehz_power_current_consume_value = 0;
+uint32_t ehz_power_current_produce_value = 0;
+uint32_t ehz_energy_produced_value = 0;
+uint32_t ehz_energy_consumed_value = 0;
 
-uint32_t old_ehz_value = 0;
-uint32_t last_ehz_msTicks = 0;
-uint32_t parsing_errors = 0;
 
-uint8_t queue_index = 0;
-uint32_t queue_values[QUEUE_SIZE];
-uint32_t queue_msticks[QUEUE_SIZE];
+uint8_t serialbuffer[EHZ_SERIAL_BUFFER_SIZE];
+uint16_t serialbuffer_index = 0;
+uint16_t current_index = 0;
+uint32_t current_msticks = 0;
+uint32_t last_receive_msticks = 0;
+
+uint8_t data_available = 0;
+uint8_t error_available = 0;
+
+void ehz_reset() {
+	uint16_t i=0;
+	for(;i < EHZ_SERIAL_BUFFER_SIZE; i++) {
+		serialbuffer[i] = 0;
+	}
+	data_available = 0;
+	error_available = 0;
+}
 
 void ehz_init() {
-	uint8_t i=0;
-	queue_index = 0;
-	for(;i < QUEUE_SIZE; i++) {
-		queue_values[i] = 0;
-		queue_msticks[i] = 0;
-	}
+	ehz_reset();
 }
 
-void add_to_queue(uint32_t msticks, uint32_t value) {
-	queue_msticks[queue_index] = msticks;
-	queue_values[queue_index] = value;
-	queue_index++;
-	queue_index %= QUEUE_SIZE;
-}
-
-int8_t get_index_for_calculation(uint32_t msticks) {
+uint8_t is_match_id(uint8_t match_id[]) {
+	if (current_index + sizeof(match_id) >= serialbuffer_index)  {
+		return 0;
+	}
 	uint8_t i=0;
-	int8_t candidate_index = -1;
-	uint32_t candidate_d = 0;
-	for(;i < QUEUE_SIZE; i++) {
-		if (queue_msticks[i] == 0) {
-			continue;
-		}
-		uint32_t d = math_calc_diff(msticks, queue_msticks[i]);
-		// 20 seconds
-		if (d >= CANDIDATE_TRIGGER) {
-			// if there isn't any candidate yet
-			if (candidate_d == 0) {
-				candidate_d = d;
-				candidate_index = i;
-			}
-			// if there is alread a candidate
-			// find a better one
-			else {
-				if (d < candidate_d) {
-					candidate_d = d;
-					candidate_index = i;
-				}
-			}
+	uint8_t matched = 1;
+	for(; i < sizeof(match_id) && matched; i++) {
+		if (serialbuffer[current_index+i] != match_id[i]) {
+			matched = 0;
 		}
 	}
-	return candidate_index;
+	return matched;
 }
 
 
 void ehz_process_serial_data(uint8_t data) {
-	// convert to 7e1
-	data &=0b01111111;
-	// echo
-	// logger_logByte(data);
-	if (search_match >= SEARCH_PATTERN_LENGTH) {
-
-		// here comes the data
-		if (serialbuffer_index >= SERIAL_BUFFER_SIZE) {
-			// error (should not happen)
-			serialbuffer_index = 0;
-			search_match = 0;
-			logger_logStringln("ehz: unexpected buffer overflow");
-		}
+	last_receive_msticks = current_msticks;
+	if (serialbuffer_index < EHZ_SERIAL_BUFFER_SIZE) {
 		serialbuffer[serialbuffer_index++] = data;
-		if (serialbuffer_index >= EHZ_VALUE_LENGTH || data == ')') {
+	}
+}
 
-			// we're expecting 11 bytes of data
-			// * parse data here *
-			uint8_t i = 0;
-			uint8_t d;
-			// atoi conversion, ignoring non-digits
-			ehz_value = 0;
-			uint8_t digits = 0;
-			uint8_t decPosition = 0;
-			for (;i<serialbuffer_index;i++) {
-				d = serialbuffer[i];
-				if (d >= '0' && d <= '9') {
-					digits++;
-					d -= '0';
-					ehz_value *= 10;
-					ehz_value += d;
-				}
-				if (d == '.') {
-					decPosition = i;
-				}
+
+void ehz_process(uint32_t msticks) {
+	current_msticks = msticks;
+
+	// wait until 50ms of uart idle
+	if (math_calc_diff(current_msticks, last_receive_msticks) > 5 && serialbuffer_index > 20) {
+		// parse data
+
+		logger_logStringln("parsing ehz data ...");
+
+		current_index = 0;
+		data_available = 0;
+		error_available = 0;
+		while(current_index < serialbuffer_index) {
+			// skip until first identifier (0x77)
+			while(serialbuffer[current_index++] != 0x77 && current_index < serialbuffer_index);
+
+			if (current_index >= serialbuffer_index) {
+				break;
 			}
 
-			// reset buffer
-			serialbuffer_index = 0;
-			search_match = 0;
+			if (current_index + 24 > serialbuffer_index) {
+				continue;
+			}
 
-			// we're expecting 10 digits for correctly parsed values
-			// e.g.
-			// 1*255(008433.1524)
-			// 1*255(008433.1531)
-			// 1*255(008433.1614)
-			if (digits == EHZ_EXPECTED_DIGITS && decPosition == EHZ_EXPECTED_DECIMAL_POSITION) {
-				value_parsed = 1;
-
-				if (old_ehz_value == 0) {
-					old_ehz_value = ehz_value;
-				}
-				if (ehz_value >= old_ehz_value) {
-					old_ehz_value = ehz_value;
-					uint32_t current_msTicks = clock_time(); // one tick equals 10ms see lpc17xx_systick.h
-					logger_logString("main: ehz value: ");
-					logger_logNumberln(ehz_value);
-
-					if (last_ehz_msTicks == 0) {
-						last_ehz_msTicks = current_msTicks;
-						add_to_queue(current_msTicks, ehz_value);
+			if (is_match_id(search_pattern_current_power)) {
+				// read value
+				if (serialbuffer[current_index+14] == 0x55 && serialbuffer[current_index+19] == 0x01) {
+					int32_t v = (serialbuffer[current_index+15] << 24)
+							| (serialbuffer[current_index+16] << 16)
+							| (serialbuffer[current_index+17] << 8)
+							| (serialbuffer[current_index+18]);
+					if (v > 0) {
+						ehz_power_current_consume_value = v;
+						logger_logString("current power consume: ");
+						logger_logNumberln(ehz_power_current_consume_value);
 					}
 					else {
-						uint32_t diff = math_calc_diff(current_msTicks, last_ehz_msTicks);
-						logger_logString("diff ticks: ");
-						logger_logNumberln(diff);
-
-						// do a calculation each 5 seconds
-						// 5 seconds
-						if (diff >= UPDATE_TRIGGER) {
-
-							int8_t candidate_index = get_index_for_calculation(current_msTicks);
-							if (candidate_index > -1) {
-								logger_logString("candidate index: ");
-								logger_logNumberln(candidate_index);
-								uint32_t prev_msticks = queue_msticks[candidate_index];
-								uint32_t prev_value = queue_values[candidate_index];
-								uint32_t d_ticks = math_calc_diff(current_msTicks, prev_msticks);
-								uint32_t d_value = math_calc_diff(ehz_value, prev_value);
-								logger_logString("candidate mstick diff: ");
-								logger_logNumberln(d_ticks);
-								logger_logString("candidate value diff: ");
-								logger_logNumberln(d_value);
-								ehz_value2 = (d_value * TICKS_PER_OUR) / d_ticks;
-
-								logger_logString("ehz: estimated ehz value2: ");
-								logger_logNumberln(ehz_value2);
-							}
-							else {
-								logger_logStringln("ehz: no candidate");
-							}
-
-							add_to_queue(current_msTicks, ehz_value);
-							last_ehz_msTicks = current_msTicks;
-						}
+						ehz_power_current_produce_value = (-1*v);
+						logger_logString("current power produce: ");
+						logger_logNumberln(ehz_power_current_produce_value);
 					}
 				}
 				else {
-					// handle unexpected parsing error
-					// log error
-					// value is expected to be greater than previous value
-					parse_error = 1;
-					parsing_errors++;
-					logger_logString("ehz: error count: ");
-					logger_logNumberln(parsing_errors);
-					logger_logString("ehz: unexpected ehz value: ");
-					logger_logNumber(ehz_value);
-					logger_logString(" old value: ");
-					logger_logNumberln(old_ehz_value);
+					logger_logStringln("Error parsing current power!");
+					error_available++;
 				}
+				continue;
 			}
-			else {
-				parse_error = 1;
-				// log error
-				parsing_errors++;
-				logger_logString("ehz: error count: ");
-				logger_logNumberln(parsing_errors);
-				logger_logString("ehz: parsing error digits: ");
-				logger_logNumberln(digits);
-				logger_logString("ehz: parsing error decimal position: ");
-				logger_logNumberln(decPosition);
+
+			if (is_match_id(search_pattern_energy_produced)) {
+				// read value
+				if (serialbuffer[current_index+17] == 0x56 && serialbuffer[current_index+23] == 0x01) {
+					uint32_t v = (serialbuffer[current_index+19] << 24)
+							| (serialbuffer[current_index+20] << 16)
+							| (serialbuffer[current_index+21] << 8)
+							| (serialbuffer[current_index+22]);
+					ehz_energy_produced_value = v;
+					logger_logString("energy produced: ");
+					logger_logNumberln(ehz_energy_produced_value);
+				}
+				else {
+					logger_logStringln("Error parsing current power!");
+					error_available++;
+				}
+				continue;
+			}
+
+			if (is_match_id(search_pattern_energy_consumed)) {
+				// read value
+				if (serialbuffer[current_index+17] == 0x56 && serialbuffer[current_index+23] == 0x01) {
+					uint32_t v = (serialbuffer[current_index+19] << 24)
+							| (serialbuffer[current_index+20] << 16)
+							| (serialbuffer[current_index+21] << 8)
+							| (serialbuffer[current_index+22]);
+					ehz_energy_consumed_value = v;
+					logger_logString("energy consumed: ");
+					logger_logNumberln(ehz_energy_consumed_value);
+				}
+				else {
+					logger_logStringln("Error parsing current power!");
+					error_available++;
+				}
+				continue;
 			}
 		}
-	}
-	else {
-		if (data == search_pattern[search_match]) {
-			search_match++;
-			if (search_match == SEARCH_PATTERN_LENGTH) {
-				logger_logStringln("ehz: triggered");
-			}
-		}
-		else {
-			search_match = 0;
+		if (error_available == 0) {
+			data_available = 1;
 		}
 	}
 }
 
-uint8_t ehz_value_parsed() {
-	return value_parsed;
+uint8_t ehz_data_available() {
+	return data_available;
 }
 
-uint8_t ehz_parse_error() {
-	if (parse_error) {
-		parse_error = 0;
-		return 1;
-	}
-	else {
-		return 0;
-	}
+uint8_t ehz_error_available() {
+	return error_available;
 }
 
-uint32_t ehz_get_value() {
-	value_parsed = 0;
-	return ehz_value;
+uint32_t ehz_get_power_current_produce() {
+	return ehz_power_current_consume_value;
 }
 
-uint32_t ehz_get_estimated_value() {
-	return ehz_value2;
+uint32_t ehz_get_power_current_consume() {
+	return ehz_power_current_produce_value;
 }
 
-uint32_t ehz_get_parsing_errors() {
-	return parsing_errors;
+uint32_t ehz_get_energy_produced() {
+	return ehz_energy_produced_value;
 }
+
+uint32_t ehz_get_energy_consumed() {
+	return ehz_energy_consumed_value;
+}
+
+
+
