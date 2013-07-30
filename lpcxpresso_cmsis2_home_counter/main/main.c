@@ -76,7 +76,7 @@ int firstconnection = 0;
 #define BUF ((struct uip_eth_hdr *)&uip_buf[0])
 
 // RTC
-#define RTC_IDENTIFIER_NUMBER 47110815
+#define RTC_IDENTIFIER_NUMBER 47110816
 
 
 
@@ -222,7 +222,7 @@ int main(void)
 	uint32_t s0_state = 0;
 	uint32_t s0_oldState = 0;
 	uint32_t s0_newState = 0;
-	uint32_t init_values[] = {42911, 497447, 8396, 0}; // WASSER, GAS, WASSER GARTEN, HEIZUNG
+	uint32_t init_values[] = {42973, 494971, 8438, 0}; // WASSER, GAS, WASSER GARTEN, HEIZUNG
 	uint32_t msticks;
 
 
@@ -399,6 +399,7 @@ int main(void)
 
 		if ( UART2Count != 0 ) {
 			led2_on();
+			//led_signal(4, 10, msticks);
 			LPC_UART2->IER = IER_THRE | IER_RLS;				/* Disable RBR */
 
 			int i = 0;
@@ -408,6 +409,10 @@ int main(void)
 			UART2Count = 0;
 			LPC_UART2->IER = IER_THRE | IER_RLS | IER_RBR;		/* Re-enable RBR */
 		}
+		else {
+			led2_off();
+		}
+
 
 		ehz_process(msticks);
 
@@ -430,10 +435,10 @@ int main(void)
 				sd->value2 = ehz_get_power_current_produce();
 				sd->errors += ehz_error_available();
 			}
+			ehz_reset();
 		}
 
 		if (ehz_error_available()) {
-			led2_off();
 			ehz_reset();
 			led_signal(5, 30, msticks);
 		}
