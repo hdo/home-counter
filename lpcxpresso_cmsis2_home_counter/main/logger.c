@@ -3,9 +3,9 @@
 #include <stdlib.h>
 
 uint8_t rbuffer[LOGGER_BUFFER_SIZE];
-uint8_t rbuffer_head=0;
-uint8_t rbuffer_tail=0;
-uint8_t rbuffer_count=0;
+uint16_t rbuffer_head=0;
+uint16_t rbuffer_tail=0;
+uint16_t rbuffer_count=0;
 
 
 /**

@@ -1,7 +1,7 @@
 #ifndef __LOGGER_H
 #define __LOGGER_H
 
-#define LOGGER_BUFFER_SIZE 256
+#define LOGGER_BUFFER_SIZE 512
 
 
 void logger_logString(char* data);
