@@ -95,35 +95,22 @@ void ehz_process(uint32_t msticks) {
 			logger_logNumber(serialbuffer_index);
 			logger_logStringln(") bytes");
 
-
-
-			/*
-			current_index = 0;
-			while(current_index < serialbuffer_index) {
-				if (serialbuffer[current_index] == 0x77) {
-					logger_logStringln("0x77");
-				}
-				logger_logNumber(serialbuffer[current_index++]);
-				logger_logByte(',');
-			}
-			*/
-
-
 			current_index = 0;
 			data_available = 0;
 			error_available = 0;
 			while(current_index < serialbuffer_index) {
-				// first byte is skipped (doesn't matter anyway)
+				// first byte is skipped due start at 1 (doesn't matter anyway)
 				current_index++;
 
 				if (serialbuffer[current_index] == 0x77) {
-
 
 					if (is_match_id(search_pattern_current_power)) {
 						logger_logStringln("found pattern current power");
 						// read value
 
 						if (serialbuffer[current_index+14] == 0x55 && serialbuffer[current_index+19] == 0x01) {
+							ehz_power_current_consume_value = 0;
+							ehz_power_current_produce_value = 0;
 							int32_t v = (serialbuffer[current_index+15] << 24)
 									| (serialbuffer[current_index+16] << 16)
 									| (serialbuffer[current_index+17] << 8)
@@ -190,7 +177,6 @@ void ehz_process(uint32_t msticks) {
 				data_available = 1;
 			}
 		}
-		//ehz_reset();
 	}
 }
 
